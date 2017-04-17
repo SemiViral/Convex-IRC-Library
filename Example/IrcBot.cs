@@ -56,7 +56,8 @@ namespace Example
         #region register methods
 
         private void Info(object sender, ChannelMessagedEventArgs e) {
-            if (!e.Message.SplitArgs[1].Equals("info"))
+            if (e.Message.SplitArgs.Count < 2 ||
+                !e.Message.SplitArgs[1].Equals("info"))
                 return;
 
             bot.SendData(Commands.PRIVMSG, $"{e.Message.Origin} {BotInfo}");

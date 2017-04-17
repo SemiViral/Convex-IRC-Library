@@ -92,8 +92,11 @@ namespace Core {
         }
 
         private void Reload(object source, ChannelMessagedEventArgs e) {
-            if (!e.Message.SplitArgs[1].Equals("reload"))
+            if (e.Message.SplitArgs.Count < 2 ||
+                !e.Message.SplitArgs[1].Equals("reload"))
                 return;
+
+            Status = PluginStatus.Processing;
 
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
@@ -102,6 +105,8 @@ namespace Core {
                 DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
+
+            Status = PluginStatus.Running;
 
             message.Args = "Attempting to reload plugins.";
             DoCallback(PluginActionType.SendMessage, message);
@@ -121,7 +126,8 @@ namespace Core {
         }
 
         private void Quit(object source, ChannelMessagedEventArgs e) {
-            if (!e.Message.SplitArgs[1].Equals("quit"))
+            if (e.Message.SplitArgs.Count < 2 ||
+                !e.Message.SplitArgs[1].Equals("quit"))
                 return;
 
             DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, "Shutting down."));
@@ -129,15 +135,18 @@ namespace Core {
         }
 
         private void Eval(object source, ChannelMessagedEventArgs e) {
-            if (!e.Message.SplitArgs[1].Equals("eval"))
+            if (e.Message.SplitArgs.Count < 2 ||
+                !e.Message.SplitArgs[1].Equals("eval"))
                 return;
 
-            Status = PluginStatus.Running;
+            Status = PluginStatus.Processing;
 
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
             if (e.Message.SplitArgs.Count < 3)
                 message.Args = "Not enough parameters.";
+
+            Status = PluginStatus.Running;
 
             if (string.IsNullOrEmpty(message.Args)) {
                 Status = PluginStatus.Running;
@@ -158,8 +167,11 @@ namespace Core {
         }
 
         private void Join(object source, ChannelMessagedEventArgs e) {
-            if (!e.Message.SplitArgs[1].Equals("join"))
+            if (e.Message.SplitArgs.Count < 2 ||
+                !e.Message.SplitArgs[1].Equals("join"))
                 return;
+
+            Status = PluginStatus.Processing;
 
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
@@ -167,7 +179,8 @@ namespace Core {
                 message.Args = "Insufficient permissions.";
             else if (e.Message.SplitArgs.Count < 3)
                 message.Args = "Insufficient parameters. Type 'eve help join' to view command's help index.";
-            else if (!e.Message.SplitArgs[2].StartsWith("#"))
+            else if (e.Message.SplitArgs.Count < 2 ||
+                     !e.Message.SplitArgs[2].StartsWith("#"))
                 message.Args = "Channel name must start with '#'.";
             else if (e.Root.ChannelExists(e.Message.SplitArgs[2].ToLower()))
                 message.Args = "I'm already in that channel.";
@@ -187,8 +200,11 @@ namespace Core {
         }
 
         private void Part(object source, ChannelMessagedEventArgs e) {
-            if (!e.Message.SplitArgs[1].Equals("part"))
+            if (e.Message.SplitArgs.Count < 2 ||
+                !e.Message.SplitArgs[1].Equals("part"))
                 return;
+
+            Status = PluginStatus.Processing;
 
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
@@ -196,10 +212,14 @@ namespace Core {
                 message.Args = "Insufficient permissions.";
             else if (e.Message.SplitArgs.Count < 3)
                 message.Args = "Insufficient parameters. Type 'eve help part' to view command's help index.";
-            else if (!e.Message.SplitArgs[2].StartsWith("#"))
+            else if (e.Message.SplitArgs.Count < 2 ||
+                     !e.Message.SplitArgs[2].StartsWith("#"))
                 message.Args = "Channel parameter must be a proper name (starts with '#').";
-            else if (!e.Root.ChannelExists(e.Message.SplitArgs[2]))
+            else if (e.Message.SplitArgs.Count < 2 ||
+                     !e.Root.ChannelExists(e.Message.SplitArgs[2]))
                 message.Args = "I'm not in that channel.";
+
+            Status = PluginStatus.Running;
 
             if (!string.IsNullOrEmpty(message.Args)) {
                 DoCallback(PluginActionType.SendMessage, message);
@@ -219,7 +239,8 @@ namespace Core {
         }
 
         private void ListChannels(object source, ChannelMessagedEventArgs e) {
-            if (!e.Message.SplitArgs[1].Equals("channels"))
+            if (e.Message.SplitArgs.Count < 2 ||
+                !e.Message.SplitArgs[1].Equals("channels"))
                 return;
 
             Status = PluginStatus.Running;
@@ -262,8 +283,11 @@ namespace Core {
         }
 
         private void Define(object source, ChannelMessagedEventArgs e) {
-            if (!e.Message.SplitArgs[1].Equals("define"))
+            if (e.Message.SplitArgs.Count < 2 ||
+                !e.Message.SplitArgs[1].Equals("define"))
                 return;
+
+            Status = PluginStatus.Processing;
 
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
@@ -272,6 +296,8 @@ namespace Core {
                 DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
+
+            Status = PluginStatus.Running;
 
             string partOfSpeech = e.Message.SplitArgs.Count > 3
                 ? $"&part_of_speech={e.Message.SplitArgs[3]}"
@@ -318,7 +344,8 @@ namespace Core {
         private void Lookup(object source, ChannelMessagedEventArgs e) {
             Status = PluginStatus.Processing;
 
-            if (!e.Message.SplitArgs[1].Equals("lookup"))
+            if (e.Message.SplitArgs.Count < 2 ||
+                !e.Message.SplitArgs[1].Equals("lookup"))
                 return;
 
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
@@ -328,6 +355,8 @@ namespace Core {
                 DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
+
+            Status = PluginStatus.Running;
 
             string query = string.Join(" ", e.Message.SplitArgs.Skip(1));
             string response = $"https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro=&explaintext=&titles={query}".HttpGet();
@@ -353,7 +382,8 @@ namespace Core {
         }
 
         private void ListUsers(object source, ChannelMessagedEventArgs e) {
-            if (!e.Message.SplitArgs[1].Equals("users"))
+            if (e.Message.SplitArgs.Count < 2 ||
+                !e.Message.SplitArgs[1].Equals("users"))
                 return;
 
             Status = PluginStatus.Running;
@@ -363,10 +393,11 @@ namespace Core {
         }
 
         private void Set(object source, ChannelMessagedEventArgs e) {
-            Status = PluginStatus.Processing;
-
-            if (!e.Message.SplitArgs[1].Equals("set"))
+            if (e.Message.SplitArgs.Count < 2 ||
+                !e.Message.SplitArgs[1].Equals("set"))
                 return;
+
+            Status = PluginStatus.Processing;
 
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
