@@ -130,7 +130,7 @@
   <ItemGroup>
     <Compile Include="ComponentModel\SpecialPropertyChangedEventArgs.cs" />
     <Compile Include="Resources\Config.cs" />
-    <Compile Include="Resources\Plugin\Controller.cs" />
+    <Compile Include="Resources\Plugin\Bridge.cs" />
     <Compile Include="Resources\Plugin\Host.cs" />
     <Compile Include="Resources\Plugin\IPlugin.cs" />
     <Compile Include="Resources\Plugin\MethodRegistrar.cs" />

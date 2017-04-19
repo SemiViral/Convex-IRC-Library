@@ -31,7 +31,7 @@ namespace Convex {
         ///     Initialises class
         /// </summary>
         public Bot(string configName) {
-            Wrapper = new PluginWrapper();
+            Wrapper = new Wrapper();
 
             Config.CheckCreate();
             config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(configName));
@@ -67,7 +67,7 @@ namespace Convex {
         #region non-critical variables
 
         private Database MainDatabase { get; set; }
-        private PluginWrapper Wrapper { get; }
+        private Wrapper Wrapper { get; }
 
         private readonly ObservableCollection<User> users;
         private readonly List<Channel> channels;
@@ -130,6 +130,9 @@ namespace Convex {
         private void SignalTerminate(object source, EventArgs e) {
             OnTerminated(e);
 
+            Wrapper.Host.StopPlugins();
+            Wrapper.Host.UnloadPluginDomain();
+
             Dispose();
 
             Log(IrcLogEntryType.System, "Bot has shutdown. Press any key to exit program.");
@@ -185,12 +188,12 @@ namespace Convex {
         ///     Register all methods
         /// </summary>
         private void RegisterMethods() {
-            Wrapper.PluginHost.RegisterMethod(new MethodRegistrar(Commands.MOTD_REPLY_END, MotdReplyEnd));
-            Wrapper.PluginHost.RegisterMethod(new MethodRegistrar(Commands.NICK, Nick));
-            Wrapper.PluginHost.RegisterMethod(new MethodRegistrar(Commands.JOIN, Join));
-            Wrapper.PluginHost.RegisterMethod(new MethodRegistrar(Commands.PART, Part));
-            Wrapper.PluginHost.RegisterMethod(new MethodRegistrar(Commands.NAMES_REPLY, NamesReply));
-            Wrapper.PluginHost.RegisterMethod(new MethodRegistrar(Commands.PRIVMSG, Privmsg));
+            Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.MOTD_REPLY_END, MotdReplyEnd));
+            Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.NICK, Nick));
+            Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.JOIN, Join));
+            Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.PART, Part));
+            Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.NAMES_REPLY, NamesReply));
+            Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.PRIVMSG, Privmsg));
         }
 
         #endregion
@@ -252,7 +255,7 @@ namespace Convex {
             }
 
             try {
-                Wrapper.PluginHost.InvokeMethods(new ChannelMessagedEventArgs(this, channelMessage));
+                Wrapper.Host.InvokeMethods(new ChannelMessagedEventArgs(this, channelMessage));
             } catch (Exception ex) {
                 Log(IrcLogEntryType.Warning, ex.ToString());
             }
@@ -271,7 +274,7 @@ namespace Convex {
         }
 
         public void RegisterMethod(MethodRegistrar registrar) {
-            Wrapper.PluginHost.RegisterMethod(registrar);
+            Wrapper.Host.RegisterMethod(registrar);
         }
 
         public int RemoveChannel(string name) => channels.RemoveAll(channel => channel.Name.Equals(name));
@@ -282,7 +285,7 @@ namespace Convex {
         /// <param name="command">Command to be returned</param>
         /// <returns></returns>
         public KeyValuePair<string, string> GetCommand(string command) {
-            return Wrapper.PluginHost.GetCommands().SingleOrDefault(x => x.Key.Equals(command));
+            return Wrapper.Host.GetCommands().SingleOrDefault(x => x.Key.Equals(command));
         }
 
         /// <summary>
@@ -291,7 +294,7 @@ namespace Convex {
         /// <param name="command">comamnd name to be checked</param>
         /// <returns>True: exists; false: does not exist</returns>
         public bool HasCommand(string command) {
-            return Wrapper.PluginHost.GetCommands().Keys.Contains(command);
+            return Wrapper.Host.GetCommands().Keys.Contains(command);
         }
 
         /// <summary>
@@ -458,11 +461,11 @@ namespace Convex {
             // built-in 'help' command
             if (e.Message.SplitArgs[1].ToLower().Equals("help")) {
                 if (e.Message.SplitArgs.Count.Equals(2)) { // in this case, 'help' is the only text in the string.
-                    Dictionary<string, string> commands = Wrapper.PluginHost.GetCommands();
+                    Dictionary<string, string> commands = Wrapper.Host.GetCommands();
 
                     writer.SendData(Commands.PRIVMSG, commands.Count.Equals(0)
                         ? $"{e.Message.Origin} No commands currently active."
-                        : $"{e.Message.Origin} Active commands: {string.Join(", ", Wrapper.PluginHost.GetCommands().Keys)}");
+                        : $"{e.Message.Origin} Active commands: {string.Join(", ", Wrapper.Host.GetCommands().Keys)}");
                     return;
                 }
 

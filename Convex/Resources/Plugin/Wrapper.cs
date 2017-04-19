@@ -5,32 +5,29 @@ using System;
 #endregion
 
 namespace Convex.Resources.Plugin {
-    internal class PluginWrapper : MarshalByRefObject {
-        internal PluginHost PluginHost;
+    internal class Wrapper : MarshalByRefObject {
+        internal Host Host;
 
         internal event EventHandler TerminateBotEvent;
         internal event EventHandler<LogEntry> LogEntryEventHandler;
         internal event EventHandler<SimpleMessageEventArgs> SimpleMessageEventHandler;
 
-        private void PluginsCallback(object source, ActionEventArgs e) {
+        private void Callback(object source, ActionEventArgs e) {
             switch (e.ActionType) {
                 case PluginActionType.Load:
-                    PluginHost.LoadPluginDomain();
+                    Host.LoadPluginDomain();
                     break;
                 case PluginActionType.Unload:
-                    PluginHost.UnloadPluginDomain();
+                    Host.UnloadPluginDomain();
                     break;
                 case PluginActionType.SignalTerminate:
-                    PluginHost.StopPlugins();
-                    PluginHost.UnloadPluginDomain();
-
                     TerminateBotEvent?.Invoke(this, EventArgs.Empty);
                     break;
                 case PluginActionType.RegisterMethod:
                     if (!(e.Result is MethodRegistrar))
                         break;
 
-                    PluginHost.RegisterMethod((MethodRegistrar)e.Result);
+                    Host.RegisterMethod((MethodRegistrar)e.Result);
                     break;
                 case PluginActionType.SendMessage:
                     if (!(e.Result is SimpleMessageEventArgs))
@@ -50,13 +47,13 @@ namespace Convex.Resources.Plugin {
         }
 
         public void Start() {
-            if (PluginHost != null)
+            if (Host != null)
                 return;
 
-            PluginHost = new PluginHost();
-            PluginHost.PluginCallback += PluginsCallback;
-            PluginHost.LoadPluginDomain();
-            PluginHost.StartPlugins();
+            Host = new Host();
+            Host.PluginCallback += Callback;
+            Host.LoadPluginDomain();
+            Host.StartPlugins();
         }
     }
 }

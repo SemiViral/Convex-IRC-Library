@@ -9,7 +9,7 @@ using System.Reflection;
 #endregion
 
 namespace Convex.Resources.Plugin {
-    internal class PluginController : MarshalByRefObject {
+    internal class Bridge : MarshalByRefObject {
         private const string PLUGIN_MASK = "Convex.*.dll";
 
 

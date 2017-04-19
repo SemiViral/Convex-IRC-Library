@@ -2,26 +2,27 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Convex.Types.Events;
 
 #endregion
 
 namespace Convex.Resources.Plugin {
-    internal class PluginHost : MarshalByRefObject {
+    internal class Host : MarshalByRefObject {
         private const string DOMAIN_NAME_PLUGINS = "DOM_PLUGINS";
         private readonly string pluginsDirectory = $"{AppDomain.CurrentDomain.BaseDirectory}\\Plugins";
 
-        private PluginController pluginController;
+        private Bridge bridge;
 
         private AppDomain pluginDomain;
 
-        public PluginHost() {
+        public Host() {
             Initialise();
         }
 
         private Dictionary<string, string> Commands { get; set; }
 
-        private Dictionary<string, List<PluginMethodWrapper>> PluginEvents { get; set; }
+        private List<MethodsContainer> MethodContainers { get; set; }
 
         public event EventHandler<ActionEventArgs> PluginCallback;
 
@@ -39,7 +40,7 @@ namespace Convex.Resources.Plugin {
                 return;
 
             pluginDomain = AppDomain.CreateDomain(DOMAIN_NAME_PLUGINS);
-            PluginEvents = new Dictionary<string, List<PluginMethodWrapper>>();
+            MethodContainers = new List<MethodsContainer>();
             Commands = new Dictionary<string, string>();
         }
 
@@ -56,37 +57,36 @@ namespace Convex.Resources.Plugin {
         }
 
         private void InitialiseController() {
-            pluginController = (PluginController)pluginDomain.CreateInstanceAndUnwrap(typeof(PluginController).Assembly.FullName, typeof(PluginController).FullName);
+            bridge = (Bridge)pluginDomain.CreateInstanceAndUnwrap(typeof(Bridge).Assembly.FullName, typeof(Bridge).FullName);
 
-            pluginController.PluginsCallback += PluginsCallback;
-            pluginController.LoadPlugins(pluginsDirectory);
+            bridge.PluginsCallback += PluginsCallback;
+            bridge.LoadPlugins(pluginsDirectory);
         }
 
         public void StartPlugins() {
-            pluginController?.StartPlugins();
+            bridge?.StartPlugins();
         }
 
         public void StopPlugins() {
             Log(IrcLogEntryType.System, $"<{DOMAIN_NAME_PLUGINS}> UNLOAD ALL RECIEVED — shutting down.");
 
-            if (pluginController.Equals(null))
+            if (bridge.Equals(null))
                 return;
 
-            pluginController.IsShuttingDown = true;
-            pluginController.StopPlugins();
+            bridge.IsShuttingDown = true;
+            bridge.StopPlugins();
         }
 
         public void InvokeMethods(ChannelMessagedEventArgs e) {
-            if (!PluginEvents.ContainsKey(e.Message.Type))
+            if (ContainerByType(e.Message.Type) == null)
                 return;
 
-            foreach (PluginMethodWrapper pluginRegistrar in PluginEvents[e.Message.Type])
-                pluginRegistrar.Invoke(this, e);
+            ContainerByType(e.Message.Type).Invoke(this, e);
         }
 
         public void RegisterMethod(MethodRegistrar methodRegistrar) {
-            if (!PluginEvents.ContainsKey(methodRegistrar.CommandType))
-                PluginEvents.Add(methodRegistrar.CommandType, new List<PluginMethodWrapper>());
+            if (ContainerByType(methodRegistrar.CommandType) == null)
+                MethodContainers.Add(new MethodsContainer(methodRegistrar.CommandType));
 
             // check whether commands exist and add to list
             if (!methodRegistrar.Definition.Equals(default(KeyValuePair<string, string>)))
@@ -95,11 +95,34 @@ namespace Convex.Resources.Plugin {
                 else
                     Commands.Add(methodRegistrar.Definition.Key, methodRegistrar.Definition.Value);
 
-            PluginEvents[methodRegistrar.CommandType].Add(methodRegistrar.Method);
+            ContainerByType(methodRegistrar.CommandType).Subscribe(methodRegistrar.Method);
+        }
+
+        private MethodsContainer ContainerByType(string type) {
+            return MethodContainers.SingleOrDefault(container => container.Command.Equals(type));
         }
 
         private void Log(IrcLogEntryType entryType, string message) {
             PluginsCallback(this, new ActionEventArgs(PluginActionType.Log, new LogEntry(entryType, message)));
+        }
+    }
+
+    internal class MethodsContainer : MarshalByRefObject {
+        private readonly List<PluginMethodWrapper> methods;
+
+        public MethodsContainer(string command) {
+            Command = command;
+            methods = new List<PluginMethodWrapper>();
+        }
+
+        public string Command { get; }
+
+        public void Subscribe(PluginMethodWrapper method) {
+            methods.Add(method);
+        }
+
+        public void Invoke(object sender, ChannelMessagedEventArgs e) {
+            methods.ForEach(method => method.Invoke(this, e));
         }
     }
 }

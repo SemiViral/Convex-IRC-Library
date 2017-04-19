@@ -88,6 +88,9 @@ namespace Convex.Resources {
                 return;
             }
 
+            if (stringToWrite.StartsWith("PONG"))
+                return;
+
             Log(IrcLogEntryType.Message, $" >> {stringToWrite}");
         }
 

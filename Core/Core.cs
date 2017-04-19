@@ -16,7 +16,7 @@ using Newtonsoft.Json.Linq;
 #endregion
 
 namespace Core {
-    public class Core : IPlugin {
+    public class Core : MarshalByRefObject, IPlugin {
         private readonly InlineCalculator calculator = new InlineCalculator();
         private readonly Regex youtubeRegex = new Regex(@"(?i)http(?:s?)://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)(?<ID>[\w\-]+)(&(amp;)?[\w\?=‌​]*)?", RegexOptions.Compiled);
 

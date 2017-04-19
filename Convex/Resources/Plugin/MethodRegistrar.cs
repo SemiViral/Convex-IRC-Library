@@ -29,7 +29,7 @@ namespace Convex.Resources.Plugin {
 
     /// <summary>
     /// This class is used to wrap the plugin method instances in an object type that can be marshalled across the app-domain boundary.
-    /// This is necessary due to <see cref="List{T}"/>
+    /// This is necessary due to <see cref="List{T}"/> not being marhallable, thusly the contents of the list must be instead.
     /// </summary>
     public sealed class PluginMethodWrapper : MarshalByRefObject {
         private readonly Action<object, ChannelMessagedEventArgs> internalDelegate;
