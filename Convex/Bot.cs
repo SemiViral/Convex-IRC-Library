@@ -7,12 +7,13 @@ using System.Collections.Specialized;
 using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using System.Net.Sockets;
+using System.Reflection;
+using System.Threading;
 using Convex.ComponentModel;
+using Convex.Net;
 using Convex.Resources;
 using Convex.Resources.Plugin;
 using Convex.Types;
-using Convex.Types.Events;
 using Convex.Types.References;
 using Newtonsoft.Json;
 
@@ -21,56 +22,53 @@ using Newtonsoft.Json;
 namespace Convex {
     public class Bot : MarshalByRefObject, IDisposable {
         private readonly Config config;
-        private readonly Writer writer;
-        private TcpClient connection;
+        private readonly Logger logger;
+
         private bool disposed;
-        private NetworkStream networkStream;
-        private StreamReader streamWriter;
 
         /// <summary>
         ///     Initialises class
         /// </summary>
         public Bot(string configName) {
             Wrapper = new Wrapper();
+            users = new ObservableCollection<User>();
+            users.CollectionChanged += UserAdded;
 
             Config.CheckCreate();
             config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(configName));
 
-            // check if connection is established, don't execute if not
-            if (!(Executing = InitializeNetworkStream()))
-                return;
-
-            writer = new Writer(networkStream);
-
-            InitializeDatabase();
-            InitailisePluginWrapper();
-
-            channels = new List<Channel>();
-            users = new ObservableCollection<User>(MainDatabase.GetAllUsers());
-            users.CollectionChanged += UserAdded;
-
-            writer.SendData(Commands.USER, $"{config.Nickname} 0 * {config.Realname}");
-            writer.SendData(Commands.NICK, config.Nickname);
-
-            RegisterMethods();
-
-            Initialised = true;
-            Executing = true;
+            logger = new Logger(config.LogAddress);
+            LogEventHandler += logger.Log;
         }
-
-        public bool Executing { get; set; }
 
         ~Bot() {
             Dispose(false);
         }
 
-        #region non-critical variables
+        /// <summary>
+        ///     Returns a specified command from commands list
+        /// </summary>
+        /// <param name="command">Command to be returned</param>
+        /// <returns></returns>
+        public KeyValuePair<string, string> GetCommand(string command) {
+            return Wrapper.Host.Commands.SingleOrDefault(x => x.Key.Equals(command));
+        }
+
+        /// <summary>
+        ///     Checks whether specified comamnd exists
+        /// </summary>
+        /// <param name="command">comamnd name to be checked</param>
+        /// <returns>True: exists; false: does not exist</returns>
+        public bool CommandExists(string command) {
+            return Wrapper.Host.GetCommands().Keys.Contains(command);
+        }
+
+        #region variabless
 
         private Database MainDatabase { get; set; }
-        private Wrapper Wrapper { get; }
+        public Wrapper Wrapper { get; }
 
         private readonly ObservableCollection<User> users;
-        private readonly List<Channel> channels;
 
         private bool initialised;
 
@@ -82,24 +80,37 @@ namespace Convex {
             }
         }
 
+        public Server Server => config.Server;
+
         public List<string> IgnoreList { get; internal set; } = new List<string>();
-        public List<string> Inhabitants => channels.SelectMany(e => e.Inhabitants).ToList();
 
         public string GetApiKey(string type) => config.ApiKeys[type];
+
+        public Version Version => Assembly.GetExecutingAssembly().GetName().Version;
 
         #endregion
 
         #region events
 
-        public event EventHandler Terminated;
-        public event EventHandler Initiated;
+        public event EventHandler<QueryEventArgs> QueryEventHandler;
+        public event EventHandler<LogEntryEventArgs> LogEventHandler;
+        public event EventHandler TerminatedEventHandler;
+        public event EventHandler InitiatedEventHandler;
+
+        private void OnQuery(QueryEventArgs e) {
+            QueryEventHandler?.Invoke(this, e);
+        }
+
+        private void OnLog(LogEntryEventArgs e) {
+            LogEventHandler?.Invoke(this, e);
+        }
 
         private void OnTerminated(EventArgs e) {
-            Terminated?.Invoke(this, e);
+            TerminatedEventHandler?.Invoke(this, e);
         }
 
         private void OnInitiate(EventArgs e) {
-            Initiated?.Invoke(this, e);
+            InitiatedEventHandler?.Invoke(this, e);
         }
 
         #endregion
@@ -118,13 +129,13 @@ namespace Convex {
             if (!dispose || disposed)
                 return;
 
-            networkStream.Dispose();
-            streamWriter.Dispose();
-            writer.Dispose();
-            config.Dispose();
+            // dispose config after server to ensure
+            // serialized values are default
+            logger?.Dispose();
+            Server?.Dispose();
+            config?.Dispose();
 
             disposed = true;
-            Executing = false;
         }
 
         private void SignalTerminate(object source, EventArgs e) {
@@ -135,63 +146,69 @@ namespace Convex {
 
             Dispose();
 
-            Log(IrcLogEntryType.System, "Bot has shutdown. Press any key to exit program.");
+            OnLog(new LogEntryEventArgs(IrcLogEntryType.System, "Bot has shutdown. Press any key to exit program."));
             Console.ReadKey();
         }
 
         #endregion
 
-        #region initializations
+        #region init
 
-        /// <summary>
-        ///     Initialises all data streams
-        /// </summary>
-        private bool InitializeNetworkStream(int maxRetries = 3) {
-            int retries = 0;
+        public bool Initialise() {
+            InitializeDatabase();
+            InitailisePluginWrapper();
+            InitialiseServer();
 
-            while (retries <= maxRetries)
-                try {
-                    connection = new TcpClient(config.Server, config.Port);
-                    networkStream = connection.GetStream();
-                    streamWriter = new StreamReader(networkStream);
-                    break;
-                } catch (Exception) {
-                    Console.WriteLine(retries <= maxRetries
-                        ? "Communication error, attempting to connect again..."
-                        : "Communication could not be established with address.\n");
+            return Server.Initialised;
+        }
 
-                    retries++;
-                }
+        private void InitialiseServer() {
+            Server.Connection.FlushedEvent += LogDataSent;
+            Server.ChannelMessagedEvent += ListenEvent;
+            Server.Initialise(config.Nickname, config.Realname);
 
-            return retries <= maxRetries;
+            Thread serverThread = new Thread(() => {
+                while (Server.Execute)
+                    Server.Queue(this);
+            });
+            serverThread.Start();
         }
 
         private void InitializeDatabase() {
             try {
-                MainDatabase = new Database(config.DatabaseLocation);
-                MainDatabase.LogEntryEventHandler += writer.LogEvent;
-            } catch (Exception ex) {
-                Log(IrcLogEntryType.Error, ex.ToString());
+                MainDatabase = new Database(config.DatabaseAddress);
+                MainDatabase.LogEntryEventHandler += logger.Log;
 
-                Executing = false;
+                foreach (User user in MainDatabase.GetAllUsers())
+                    users.Add(user);
+
+                OnLog(new LogEntryEventArgs(IrcLogEntryType.System, "Loaded database."));
+            } catch (Exception ex) {
+                OnLog(new LogEntryEventArgs(IrcLogEntryType.Error, ex.ToString()));
+
+                Server.Execute = false;
             }
         }
 
         private void InitailisePluginWrapper() {
             Wrapper.TerminateBotEvent += SignalTerminate;
-            Wrapper.LogEntryEventHandler += writer.LogEvent;
-            Wrapper.SimpleMessageEventHandler += writer.SendData;
+            Wrapper.LogEntryEventHandler += logger.Log;
+            Wrapper.SimpleMessageEventHandler += (source, e) => Server.Connection.SendData(e);
             Wrapper.Start();
+
+            RegisterMethods();
         }
 
         /// <summary>
         ///     Register all methods
         /// </summary>
-        private void RegisterMethods() {
+        public virtual void RegisterMethods() {
             Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.MOTD_REPLY_END, MotdReplyEnd));
             Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.NICK, Nick));
             Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.JOIN, Join));
             Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.PART, Part));
+            Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.CHANNEL_TOPIC, ChannelTopic));
+            Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.TOPIC, NewTopic));
             Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.NAMES_REPLY, NamesReply));
             Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.PRIVMSG, Privmsg));
         }
@@ -200,136 +217,43 @@ namespace Convex {
 
         #region runtime
 
-        /// <summary>
-        ///     Recieves input from open stream
-        /// </summary>
-        private string ListenToStream() {
-            string data = string.Empty;
-
-            try {
-                data = streamWriter.ReadLine();
-            } catch (NullReferenceException) {
-                Log(IrcLogEntryType.Error, "Stream disconnected. Attempting to reconnect...");
-
-                InitializeNetworkStream();
-            } catch (Exception ex) {
-                Log(IrcLogEntryType.Error, ex.ToString());
-
-                InitializeNetworkStream();
-            }
-
-            return data;
-        }
-
-        /// <summary>
-        ///     Default method to execute bot functions
-        /// </summary>
-        public void ExecuteRuntime() {
-            if (!Executing)
+        private void ListenEvent(object source, ChannelMessagedEventArgs e) {
+            if (string.IsNullOrEmpty(e.Message.Type))
                 return;
 
-            string rawData = ListenToStream();
+            if (e.Message.Type.Equals(Commands.PRIVMSG)) {
+                OnLog(new LogEntryEventArgs(IrcLogEntryType.Message, $"<{e.Message.Origin} {e.Message.Nickname}> {e.Message.Args}"));
 
-            if (string.IsNullOrEmpty(rawData) ||
-                CheckIfIsPing(rawData))
-                return;
+                // todo AddChannel(channelMessage.Origin);
 
-            ChannelMessage channelMessage = new ChannelMessage(rawData);
-
-            if (string.IsNullOrEmpty(channelMessage.Type) ||
-                channelMessage.Realname.Equals(config.Realname) ||
-                channelMessage.Type.Equals(Commands.ABORT) ||
-                config.IgnoreList.Contains(channelMessage.Realname))
-                return;
-
-            if (channelMessage.Type.Equals(Commands.PRIVMSG)) {
-                Log(IrcLogEntryType.Message, $"<{channelMessage.Origin} {channelMessage.Nickname}> {channelMessage.Args}");
-
-                AddChannel(channelMessage.Origin);
-                CheckAddUser(channelMessage);
-
-                if (GetUser(channelMessage.Realname).GetTimeout())
+                if (GetUser(e.Message.Realname).GetTimeout())
                     return;
+            } else if (e.Message.Type.Equals(Commands.ERROR)) {
+                OnLog(new LogEntryEventArgs(IrcLogEntryType.Message, e.Message.RawMessage));
+                Server.Execute = false;
+                return;
             } else {
-                Log(IrcLogEntryType.Message, rawData);
+                OnLog(new LogEntryEventArgs(IrcLogEntryType.Message, e.Message.RawMessage));
             }
+
+            if (e.Message.Nickname.Equals(config.Nickname) ||
+                config.IgnoreList.Contains(e.Message.Realname))
+                return;
 
             try {
-                Wrapper.Host.InvokeMethods(new ChannelMessagedEventArgs(this, channelMessage));
+                Wrapper.Host.InvokeMethods(e);
             } catch (Exception ex) {
-                Log(IrcLogEntryType.Warning, ex.ToString());
+                OnLog(new LogEntryEventArgs(IrcLogEntryType.Warning, ex.ToString()));
             }
         }
 
-        #endregion
-
-        #region general methods
-
-        private void Log(IrcLogEntryType entryType, string message) {
-            writer.LogEvent(this, new LogEntry(entryType, message));
-        }
-
-        public void SendData(params string[] args) {
-            writer.SendData(args);
-        }
-
-        public void RegisterMethod(MethodRegistrar registrar) {
-            Wrapper.Host.RegisterMethod(registrar);
-        }
-
-        public int RemoveChannel(string name) => channels.RemoveAll(channel => channel.Name.Equals(name));
-
-        /// <summary>
-        ///     Returns a specified command from commands list
-        /// </summary>
-        /// <param name="command">Command to be returned</param>
-        /// <returns></returns>
-        public KeyValuePair<string, string> GetCommand(string command) {
-            return Wrapper.Host.GetCommands().SingleOrDefault(x => x.Key.Equals(command));
-        }
-
-        /// <summary>
-        ///     Checks whether specified comamnd exists
-        /// </summary>
-        /// <param name="command">comamnd name to be checked</param>
-        /// <returns>True: exists; false: does not exist</returns>
-        public bool HasCommand(string command) {
-            return Wrapper.Host.GetCommands().Keys.Contains(command);
-        }
-
-        /// <summary>
-        ///     Check whether the data recieved is a ping message and reply
-        /// </summary>
-        /// <param name="rawData"></param>
-        /// <returns></returns>
-        private bool CheckIfIsPing(string rawData) {
-            if (!rawData.StartsWith(Commands.PING))
-                return false;
-
-            writer.SendData(Commands.PONG, rawData.Remove(0, 5)); // removes 'PING ' from string
-            return true;
+        private void LogDataSent(object source, StreamFlushedEventArgs e) {
+            OnLog(new LogEntryEventArgs(IrcLogEntryType.Message, $" >> {e.Contents}"));
         }
 
         #endregion
 
-        #region channel methods
-
-        /// <summary>
-        ///     Check if message's channel origin should be added to channel list
-        /// </summary>
-        public void AddChannel(string name) {
-            if (name.StartsWith("#") &&
-                !channels.Any(e => e.Name.Equals(name)))
-                channels.Add(new Channel(name));
-        }
-
-        public bool ChannelExists(string channelName) => channels.Any(channel => channel.Name.Equals(channelName));
-
-        public List<string> GetAllChannels() => channels.Select(channel => channel.Name).ToList();
-
-        #endregion
-
-        #region user methods
+        #region user updates
 
         protected virtual void UserAdded(object source, NotifyCollectionChangedEventArgs e) {
             if (!e.Action.Equals(NotifyCollectionChangedAction.Add))
@@ -339,7 +263,25 @@ namespace Convex {
                 if (!(item is User))
                     continue;
 
+                if (!MainDatabase.UserExists(((User)item).Realname))
+                    MainDatabase.CreateUser((User)item);
+
                 ((User)item).PropertyChanged += AutoUpdateUsers;
+                ((User)item).Messages.CollectionChanged += MessageAdded;
+            }
+        }
+
+        protected virtual void MessageAdded(object source, NotifyCollectionChangedEventArgs e) {
+            if (!e.Action.Equals(NotifyCollectionChangedAction.Add))
+                return;
+
+            foreach (object item in e.NewItems) {
+                if (!(item is Message))
+                    continue;
+
+                Message message = (Message)item;
+
+                OnQuery(new QueryEventArgs($"INSERT INTO messages VALUES ({message.Id}, '{message.Sender}', '{message.Contents}', '{message.Date}')"));
             }
         }
 
@@ -349,81 +291,50 @@ namespace Convex {
 
             SpecialPropertyChangedEventArgs castedArgs = (SpecialPropertyChangedEventArgs)e;
 
-            MainDatabase.SimpleQuery($"UPDATE users SET {castedArgs.PropertyName}='{castedArgs.NewValue}' WHERE realname='{castedArgs.Name}'");
-        }
-
-        private void CheckAddUser(ChannelMessage channelMessage) {
-            if (GetUser(channelMessage.Realname) != null)
-                return;
-
-            CreateUser(3, channelMessage.Nickname, channelMessage.Realname, channelMessage.Timestamp);
-        }
-
-        /// <summary>
-        ///     Creates a new user and updates the users & userTimeouts collections
-        /// </summary>
-        /// <param name="access">access level of user</param>
-        /// <param name="nickname">nickname of user</param>
-        /// <param name="realname">realname of user</param>
-        /// <param name="seen">last time user was seen</param>
-        private void CreateUser(int access, string nickname, string realname, DateTime seen) {
-            if (users.Any(e => e.Realname.Equals(realname)))
-                return;
-
-            Log(IrcLogEntryType.System, $"Creating database entry for {realname}.");
-
-            int id = MainDatabase.GetLastDatabaseId() + 1;
-
-            users.Add(new User(id, nickname, realname, access, seen));
-            MainDatabase.SimpleQuery($"INSERT INTO users VALUES ({id}, '{nickname}', '{realname}', {access}, '{seen}')");
+            OnQuery(new QueryEventArgs($"UPDATE users SET {castedArgs.PropertyName}='{castedArgs.NewValue}' WHERE realname='{castedArgs.Name}'"));
         }
 
         public List<string> GetAllUsernames() => users.Select(user => user.Realname).ToList();
         public User GetUser(string userName) => users.SingleOrDefault(user => user.Realname.Equals(userName));
         public bool UserExists(string userName) => users.Any(user => user.Realname.Equals(userName));
 
-        /// <summary>
-        ///     Adds a Args object to list
-        /// </summary>
-        /// <param name="user">user object</param>
-        /// <param name="message"><see cref="Message" /> to be added</param>
-        public void AddMessage(User user, Message message) {
-            if (!users.Contains(user))
-                return;
-
-            MainDatabase.SimpleQuery($"INSERT INTO messages VALUES ({user.Id}, '{message.Sender}', '{message.Contents}', '{message.Date}')");
-            user.Messages.Add(message);
-        }
-
         #endregion
 
         #region register methods
 
         private void MotdReplyEnd(object source, ChannelMessagedEventArgs e) {
-            if (config.Identified)
+            if (Server.Identified)
                 return;
 
-            writer.SendData(Commands.PRIVMSG, $"NICKSERV IDENTIFY {config.Password}");
-            writer.SendData(Commands.MODE, $"{config.Nickname} +B");
+            Server?.Connection.SendData(Commands.PRIVMSG, $"NICKSERV IDENTIFY {config.Password}");
+            Server?.Connection.SendData(Commands.MODE, $"{config.Nickname} +B");
 
-            foreach (string channel in config.Channels) {
-                writer.SendData(Commands.JOIN, channel);
-                channels.Add(new Channel(channel));
+            foreach (Channel channel in Server.Channels.Where(channel => !channel.Connected)) {
+                Server.Connection.SendData(Commands.JOIN, channel.Name);
+                channel.Connected = true;
             }
 
-            config.Identified = true;
+            Server.Identified = true;
         }
 
         private void Nick(object source, ChannelMessagedEventArgs e) {
-            MainDatabase.SimpleQuery($"UPDATE users SET nickname='{e.Message.Origin}' WHERE realname='{e.Message.Realname}'");
+            OnQuery(new QueryEventArgs($"UPDATE users SET nickname='{e.Message.Origin}' WHERE realname='{e.Message.Realname}'"));
         }
 
         private void Join(object source, ChannelMessagedEventArgs e) {
-            channels.SingleOrDefault(channel => !channel.Name.Equals(e.Message.Origin))?.AddUser(e.Message.Origin);
+            Server.GetChannel(e.Message.Origin)?.Inhabitants.Add(e.Message.Nickname);
         }
 
         private void Part(object source, ChannelMessagedEventArgs e) {
-            channels.SingleOrDefault(channel => channel.Name.Equals(e.Message.Origin))?.Inhabitants.RemoveAll(x => x.Equals(e.Message.Nickname));
+            Server.GetChannel(e.Message.Origin)?.Inhabitants.RemoveAll(x => x.Equals(e.Message.Nickname));
+        }
+
+        private void ChannelTopic(object source, ChannelMessagedEventArgs e) {
+            Server.GetChannel(e.Message.SplitArgs[0]).Topic = e.Message.Args.Substring(e.Message.Args.IndexOf(' ') + 2);
+        }
+
+        private void NewTopic(object source, ChannelMessagedEventArgs e) {
+            Server.GetChannel(e.Message.Origin).Topic = e.Message.Args;
         }
 
         private void NamesReply(object source, ChannelMessagedEventArgs e) {
@@ -436,13 +347,13 @@ namespace Convex {
                 return;
 
             foreach (string s in e.Message.SplitArgs[3].Split(' ')) {
-                Channel currentChannel = channels.SingleOrDefault(channel => channel.Name.Equals(channelName));
+                Channel currentChannel = Server.Channels.SingleOrDefault(channel => channel.Name.Equals(channelName));
 
                 if (currentChannel == null ||
                     currentChannel.Inhabitants.Contains(s))
                     continue;
 
-                channels.Single(channel => channel.Name.Equals(channelName)).Inhabitants.Add(s);
+                Server?.Channels.Single(channel => channel.Name.Equals(channelName)).Inhabitants.Add(s);
             }
         }
 
@@ -454,7 +365,7 @@ namespace Convex {
                 return;
 
             if (e.Message.SplitArgs.Count < 2) { // typed only 'eve'
-                writer.SendData(Commands.PRIVMSG, $"{e.Message.Origin} Type 'eve help' to view my command list.");
+                Server?.Connection.SendData(Commands.PRIVMSG, $"{e.Message.Origin} Type 'eve help' to view my command list.");
                 return;
             }
 
@@ -463,7 +374,7 @@ namespace Convex {
                 if (e.Message.SplitArgs.Count.Equals(2)) { // in this case, 'help' is the only text in the string.
                     Dictionary<string, string> commands = Wrapper.Host.GetCommands();
 
-                    writer.SendData(Commands.PRIVMSG, commands.Count.Equals(0)
+                    Server?.Connection.SendData(Commands.PRIVMSG, commands.Count.Equals(0)
                         ? $"{e.Message.Origin} No commands currently active."
                         : $"{e.Message.Origin} Active commands: {string.Join(", ", Wrapper.Host.GetCommands().Keys)}");
                     return;
@@ -475,14 +386,14 @@ namespace Convex {
                     ? "Command not found."
                     : $"{queriedCommand.Key}: {queriedCommand.Value}";
 
-                writer.SendData(Commands.PRIVMSG, $"{e.Message.Origin} {valueToSend}");
+                Server?.Connection.SendData(Commands.PRIVMSG, $"{e.Message.Origin} {valueToSend}");
 
                 return;
             }
 
-            if (HasCommand(e.Message.SplitArgs[1].ToLower()))
+            if (CommandExists(e.Message.SplitArgs[1].ToLower()))
                 return;
-            writer.SendData(Commands.PRIVMSG, $"{e.Message.Origin} Invalid command. Type 'eve help' to view my command list.");
+            Server?.Connection.SendData(Commands.PRIVMSG, $"{e.Message.Origin} Invalid command. Type 'eve help' to view my command list.");
         }
 
         #endregion

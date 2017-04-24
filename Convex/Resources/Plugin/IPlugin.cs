@@ -2,6 +2,7 @@
 
 using System;
 using System.Reflection;
+using Convex.Net;
 
 #endregion
 
@@ -26,19 +27,20 @@ namespace Convex.Resources.Plugin {
 
     [Serializable]
     public class SimpleMessageEventArgs : EventArgs {
-        public SimpleMessageEventArgs(string command, string target, params string[] args) {
+        public SimpleMessageEventArgs(string command, string target, string message) {
             Command = command;
             Target = target;
-            Args = string.Join(" ", args);
+            Message = message;
         }
 
-        public override string ToString() {
-            return $"{Command} {Target} {Args}";
-        }
-
+        public string Address { get; set; }
         public string Command { get; set; }
         public string Target { get; set; }
-        public string Args { get; set; }
+        public string Message { get; set; }
+
+        public override string ToString() {
+            return $"{Command} {Target} {Message}";
+        }
     }
 
     [Serializable]

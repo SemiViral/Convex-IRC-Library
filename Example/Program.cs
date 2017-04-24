@@ -1,14 +1,18 @@
-﻿using System;
+﻿#region usings
+
+using System;
 using System.ComponentModel;
 
-namespace Example
-{
+#endregion
+
+namespace Example {
     internal class Program {
-        public static IrcBot Bot;
+        public static IrcBot IrcBot;
 
         private static void ParseAndDo(object sender, DoWorkEventArgs e) {
-            while (Bot.CanExecute)
-                Bot.Run();
+            while (IrcBot.CanExecute) {
+                string input = Console.ReadLine();
+            }
         }
 
         private static void NonDebugRun() {
@@ -25,12 +29,15 @@ namespace Example
         }
 
         private static void DebugRun() {
-            while (Bot.CanExecute)
-                Bot.Run();
+            while (IrcBot.CanExecute) {
+                string input = Console.ReadLine();
+            }
+
+            IrcBot.Dispose();
         }
 
         private static void ExecuteRuntime() {
-            using (Bot = new IrcBot()) {
+            using (IrcBot = new IrcBot()) {
 #if DEBUG
                 DebugRun();
 #else

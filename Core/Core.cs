@@ -5,10 +5,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Convex.Resources;
+using Convex;
+using Convex.Net;
 using Convex.Resources.Plugin;
 using Convex.Types;
-using Convex.Types.Events;
 using Convex.Types.References;
 using Core.Calculator;
 using Newtonsoft.Json.Linq;
@@ -64,7 +64,7 @@ namespace Core {
         }
 
         public void Log(IrcLogEntryType logType, string message) {
-            DoCallback(PluginActionType.Log, new LogEntry(logType, message));
+            DoCallback(PluginActionType.Log, new LogEntryEventArgs(logType, message));
         }
 
         public void Call_Die() {
@@ -74,8 +74,8 @@ namespace Core {
 
         public event EventHandler<ActionEventArgs> CallbackEvent;
 
-        private void Log(object source, LogEntry logEntry) {
-            Log(logEntry.EntryType, logEntry.Message);
+        private void Log(object source, LogEntryEventArgs logEntryEventArgs) {
+            Log(logEntryEventArgs.EntryType, logEntryEventArgs.Message);
         }
 
         public void DoCallback(ActionEventArgs e) {
@@ -101,27 +101,27 @@ namespace Core {
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
             if (e.Root.GetUser(e.Message.Realname).Access > 1) {
-                message.Args = "Insufficient permissions.";
+                message.Message = "Insufficient permissions.";
                 DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
 
             Status = PluginStatus.Running;
 
-            message.Args = "Attempting to reload plugins.";
+            message.Message = "Attempting to reload plugins.";
             DoCallback(PluginActionType.SendMessage, message);
 
             try {
                 DoCallback(PluginActionType.Unload);
                 DoCallback(PluginActionType.Load);
             } catch (Exception ex) {
-                message.Args = "Error occured reloading plugins.";
+                message.Message = "Error occured reloading plugins.";
                 DoCallback(PluginActionType.SendMessage, message);
                 Log(IrcLogEntryType.Error, $"Error reloading plugins: {ex}");
                 return;
             }
 
-            message.Args = "Sucessfully reloaded plugins.";
+            message.Message = "Sucessfully reloaded plugins.";
             DoCallback(PluginActionType.SendMessage, message);
         }
 
@@ -144,20 +144,20 @@ namespace Core {
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
             if (e.Message.SplitArgs.Count < 3)
-                message.Args = "Not enough parameters.";
+                message.Message = "Not enough parameters.";
 
             Status = PluginStatus.Running;
 
-            if (string.IsNullOrEmpty(message.Args)) {
+            if (string.IsNullOrEmpty(message.Message)) {
                 Status = PluginStatus.Running;
                 string evalArgs = e.Message.SplitArgs.Count > 3
                     ? e.Message.SplitArgs[2] + e.Message.SplitArgs[3]
                     : e.Message.SplitArgs[2];
 
                 try {
-                    message.Args = calculator.Evaluate(evalArgs).ToString(CultureInfo.CurrentCulture);
+                    message.Message = calculator.Evaluate(evalArgs).ToString(CultureInfo.CurrentCulture);
                 } catch (Exception ex) {
-                    message.Args = ex.Message;
+                    message.Message = ex.Message;
                 }
             }
 
@@ -176,22 +176,22 @@ namespace Core {
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
             if (e.Root.GetUser(e.Message.Realname).Access > 1)
-                message.Args = "Insufficient permissions.";
+                message.Message = "Insufficient permissions.";
             else if (e.Message.SplitArgs.Count < 3)
-                message.Args = "Insufficient parameters. Type 'eve help join' to view command's help index.";
+                message.Message = "Insufficient parameters. Type 'eve help join' to view command's help index.";
             else if (e.Message.SplitArgs.Count < 2 ||
                      !e.Message.SplitArgs[2].StartsWith("#"))
-                message.Args = "Channel name must start with '#'.";
-            else if (e.Root.ChannelExists(e.Message.SplitArgs[2].ToLower()))
-                message.Args = "I'm already in that channel.";
+                message.Message = "Channel name must start with '#'.";
+            else if (e.Root.Server.ChannelExists(e.Message.SplitArgs[2].ToLower()))
+                message.Message = "I'm already in that channel.";
 
             Status = PluginStatus.Running;
 
-            if (string.IsNullOrEmpty(message.Args)) {
+            if (string.IsNullOrEmpty(message.Message)) {
                 DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.JOIN, string.Empty, e.Message.SplitArgs[2]));
-                e.Root.AddChannel(e.Message.SplitArgs[2].ToLower());
+                e.Root.Server.AddChannel(e.Message.SplitArgs[2].ToLower());
 
-                message.Args = $"Successfully joined channel: {e.Message.SplitArgs[2]}.";
+                message.Message = $"Successfully joined channel: {e.Message.SplitArgs[2]}.";
             }
 
             DoCallback(PluginActionType.SendMessage, message);
@@ -209,28 +209,28 @@ namespace Core {
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
             if (e.Root.GetUser(e.Message.Realname).Access > 1)
-                message.Args = "Insufficient permissions.";
+                message.Message = "Insufficient permissions.";
             else if (e.Message.SplitArgs.Count < 3)
-                message.Args = "Insufficient parameters. Type 'eve help part' to view command's help index.";
+                message.Message = "Insufficient parameters. Type 'eve help part' to view command's help index.";
             else if (e.Message.SplitArgs.Count < 2 ||
                      !e.Message.SplitArgs[2].StartsWith("#"))
-                message.Args = "Channel parameter must be a proper name (starts with '#').";
+                message.Message = "Channel parameter must be a proper name (starts with '#').";
             else if (e.Message.SplitArgs.Count < 2 ||
-                     !e.Root.ChannelExists(e.Message.SplitArgs[2]))
-                message.Args = "I'm not in that channel.";
+                     !e.Root.Server.ChannelExists(e.Message.SplitArgs[2]))
+                message.Message = "I'm not in that channel.";
 
             Status = PluginStatus.Running;
 
-            if (!string.IsNullOrEmpty(message.Args)) {
+            if (!string.IsNullOrEmpty(message.Message)) {
                 DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
 
             string channel = e.Message.SplitArgs[2].ToLower();
 
-            e.Root.RemoveChannel(channel);
+            e.Root.Server.RemoveChannel(channel);
 
-            message.Args = $"Successfully parted channel: {channel}";
+            message.Message = $"Successfully parted channel: {channel}";
 
             DoCallback(PluginActionType.SendMessage, message);
             DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PART, string.Empty, $"{channel} Channel part invoked by: {e.Message.Nickname}"));
@@ -244,7 +244,7 @@ namespace Core {
                 return;
 
             Status = PluginStatus.Running;
-            DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Join(", ", e.Root.GetAllChannels())));
+            DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Join(", ", e.Root.Server.GetAllChannels())));
 
             Status = PluginStatus.Stopped;
         }
@@ -292,7 +292,7 @@ namespace Core {
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
             if (e.Message.SplitArgs.Count < 3) {
-                message.Args = "Insufficient parameters. Type 'eve help define' to view correct usage.";
+                message.Message = "Insufficient parameters. Type 'eve help define' to view correct usage.";
                 DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
@@ -306,7 +306,7 @@ namespace Core {
             JObject entry = JObject.Parse($"http://api.pearson.com/v2/dictionaries/laad3/entries?headword={e.Message.SplitArgs[2]}{partOfSpeech}&limit=1".HttpGet());
 
             if ((int)entry.SelectToken("count") < 1) {
-                message.Args = "Query returned no results.";
+                message.Message = "Query returned no results.";
                 DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
@@ -335,7 +335,7 @@ namespace Core {
             if (_out.ContainsKey("example"))
                 returnMessage += $" (ex. {_out["example"]})";
 
-            message.Args = returnMessage;
+            message.Message = returnMessage;
             DoCallback(PluginActionType.SendMessage, message);
 
             Status = PluginStatus.Stopped;
@@ -351,7 +351,7 @@ namespace Core {
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
             if (e.Message.SplitArgs.Count < 3) {
-                message.Args = "Insufficient parameters. Type 'eve help lookup' to view correct usage.";
+                message.Message = "Insufficient parameters. Type 'eve help lookup' to view correct usage.";
                 DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
@@ -364,7 +364,7 @@ namespace Core {
             JToken pages = JObject.Parse(response)["query"]["pages"].Values().First();
 
             if (string.IsNullOrEmpty((string)pages["extract"])) {
-                message.Args = "Query failed to return results. Perhaps try a different term?";
+                message.Message = "Query failed to return results. Perhaps try a different term?";
                 DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
@@ -374,7 +374,7 @@ namespace Core {
             message.Target = e.Message.Nickname;
 
             foreach (string splitMessage in fullReplyStr.Split(400)) {
-                message.Args = splitMessage;
+                message.Message = splitMessage;
                 DoCallback(PluginActionType.SendMessage, message);
             }
 
@@ -402,13 +402,13 @@ namespace Core {
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
             if (e.Message.SplitArgs.Count < 5) {
-                message.Args = "Insufficient parameters. Type 'eve help lookup' to view correct usage.";
+                message.Message = "Insufficient parameters. Type 'eve help lookup' to view correct usage.";
                 DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
 
             if (e.Root.GetUser(e.Message.Nickname).Access > 0)
-                message.Args = "Insufficient permissions.";
+                message.Message = "Insufficient permissions.";
 
             //e.Root.GetUser()
 

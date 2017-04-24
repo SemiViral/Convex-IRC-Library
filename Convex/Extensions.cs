@@ -8,7 +8,7 @@ using System.Text;
 
 #endregion
 
-namespace Convex.Types {
+namespace Convex {
     public static class Extensions {
         /// <summary>
         ///     Obtain HTTP response from a GET request
@@ -48,7 +48,7 @@ namespace Convex.Types {
                 }
 
                 deliminatedSpaces.Append(str[i]);
-                }
+            }
 
             return deliminatedSpaces.ToString();
         }

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Convex.Types.References;
 
 #endregion
 
@@ -19,6 +20,12 @@ namespace Convex.Types {
 
         public ChannelMessage(string rawData) {
             RawMessage = rawData.Trim();
+
+            if (rawData.StartsWith("ERROR")) {
+                Type = Commands.ERROR;
+                Args = rawData.Substring(rawData.IndexOf(' ') + 1);
+                return;
+            }
             Parse();
         }
 
@@ -27,7 +34,7 @@ namespace Convex.Types {
         public string RawMessage { get; }
 
         public DateTime Timestamp { get; private set; }
-
+        
         public string Nickname { get; private set; }
         public string Realname { get; private set; }
         public string Hostname { get; private set; }
@@ -70,7 +77,6 @@ namespace Convex.Types {
                 ? mVal.Groups["Recipient"].Value.Substring(1)
                 : mVal.Groups["Recipient"].Value;
 
-            string args = mVal.Groups["Args"].Value;
             Args = mVal.Groups["Args"].Value.DeliminateSpaces();
 
             // splits the first 5 sections of the message for parsing
@@ -86,5 +92,16 @@ namespace Convex.Types {
                 : realname;
             Hostname = sMatch.Groups["Hostname"].Value;
         }
+    }
+
+    [Serializable]
+    public class ChannelMessagedEventArgs : EventArgs {
+        public ChannelMessagedEventArgs(Bot bot, ChannelMessage message) {
+            Root = bot;
+            Message = message;
+        }
+
+        public Bot Root { get; }
+        public ChannelMessage Message { get; }
     }
 }

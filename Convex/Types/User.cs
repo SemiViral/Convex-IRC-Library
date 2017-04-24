@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Convex.ComponentModel;
@@ -24,7 +25,7 @@ namespace Convex.Types {
             Seen = seen;
             Id = id;
 
-            Messages = new List<Message>();
+            Messages = new ObservableCollection<Message>();
             Channels = new List<string>();
         }
 
@@ -76,7 +77,7 @@ namespace Convex.Types {
             }
         }
 
-        public List<Message> Messages { get; }
+        public ObservableCollection<Message> Messages { get; }
         public List<string> Channels { get; }
 
         public event PropertyChangedEventHandler PropertyChanged;
@@ -107,17 +108,28 @@ namespace Convex.Types {
         public virtual void OnPropertyChanged(object sender, PropertyChangedEventArgs e) {
             PropertyChanged?.Invoke(this, e);
         }
+
+        /// <summary>
+        ///     Adds a Args object to list
+        /// </summary>
+        /// <param name="user">user object</param>
+        /// <param name="message"><see cref="Message" /> to be added</param>
+        public void AddMessage(User user, Message message) {
+            user.Messages.Add(message);
+        }
     }
 
     public class Message {
-        public Message(string sender, string contents, DateTime timestamp) {
+        public Message(int id, string sender, string contents, DateTime timestamp) {
+            Id = id;
             Sender = sender;
             Contents = contents;
             Date = timestamp;
         }
 
-        public string Sender { get; set; }
-        public string Contents { get; set; }
-        public DateTime Date { get; set; }
+        public int Id { get; }
+        public string Sender { get; }
+        public string Contents { get; }
+        public DateTime Date { get; }
     }
 }

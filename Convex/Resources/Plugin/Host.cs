@@ -3,12 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using Convex.Types.Events;
+using Convex.Net;
+using Convex.Types;
 
 #endregion
 
 namespace Convex.Resources.Plugin {
-    internal class Host : MarshalByRefObject {
+    public class Host : MarshalByRefObject {
         private const string DOMAIN_NAME_PLUGINS = "DOM_PLUGINS";
         private readonly string pluginsDirectory = $"{AppDomain.CurrentDomain.BaseDirectory}\\Plugins";
 
@@ -20,7 +21,7 @@ namespace Convex.Resources.Plugin {
             Initialise();
         }
 
-        private Dictionary<string, string> Commands { get; set; }
+        public Dictionary<string, string> Commands { get; private set; }
 
         private List<MethodsContainer> MethodContainers { get; set; }
 
@@ -103,7 +104,7 @@ namespace Convex.Resources.Plugin {
         }
 
         private void Log(IrcLogEntryType entryType, string message) {
-            PluginsCallback(this, new ActionEventArgs(PluginActionType.Log, new LogEntry(entryType, message)));
+            PluginsCallback(this, new ActionEventArgs(PluginActionType.Log, new LogEntryEventArgs(entryType, message)));
         }
     }
 

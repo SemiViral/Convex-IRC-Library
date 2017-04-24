@@ -5,13 +5,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using Convex.Net;
 
 #endregion
 
 namespace Convex.Resources.Plugin {
     internal class Bridge : MarshalByRefObject {
         private const string PLUGIN_MASK = "Convex.*.dll";
-
 
         public List<PluginInstance> Plugins = new List<PluginInstance>();
 
@@ -108,7 +108,7 @@ namespace Convex.Resources.Plugin {
         }
 
         private void Log(IrcLogEntryType entryType, string message) {
-            PluginsCallback?.Invoke(this, new ActionEventArgs(PluginActionType.Log, new LogEntry(entryType, message)));
+            PluginsCallback?.Invoke(this, new ActionEventArgs(PluginActionType.Log, new LogEntryEventArgs(entryType, message)));
         }
     }
 

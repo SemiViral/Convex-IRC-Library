@@ -1,15 +1,16 @@
 ﻿#region usings
 
 using System;
+using Convex.Net;
 
 #endregion
 
 namespace Convex.Resources.Plugin {
-    internal class Wrapper : MarshalByRefObject {
-        internal Host Host;
+    public class Wrapper : MarshalByRefObject {
+        public Host Host;
 
         internal event EventHandler TerminateBotEvent;
-        internal event EventHandler<LogEntry> LogEntryEventHandler;
+        internal event EventHandler<LogEntryEventArgs> LogEntryEventHandler;
         internal event EventHandler<SimpleMessageEventArgs> SimpleMessageEventHandler;
 
         private void Callback(object source, ActionEventArgs e) {
@@ -36,10 +37,10 @@ namespace Convex.Resources.Plugin {
                     SimpleMessageEventHandler?.Invoke(this, (SimpleMessageEventArgs)e.Result);
                     break;
                 case PluginActionType.Log:
-                    if (!(e.Result is LogEntry))
+                    if (!(e.Result is LogEntryEventArgs))
                         break;
 
-                    LogEntryEventHandler?.Invoke(this, (LogEntry)e.Result);
+                    LogEntryEventHandler?.Invoke(this, (LogEntryEventArgs)e.Result);
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();
