@@ -2,7 +2,8 @@
 
 using System;
 using System.Reflection;
-using Convex.Net;
+using System.Threading.Tasks;
+using Convex.Types.Events;
 
 #endregion
 
@@ -17,12 +18,36 @@ namespace Convex.Resources.Plugin {
         string Id { get; }
         PluginStatus Status { get; }
 
-        void Start();
-        void Stop();
-        void Call_Die();
-        void Log(IrcLogEntryType logType, string message);
+        Task Start();
+        Task Stop();
+        Task Call_Die();
 
-        event EventHandler<ActionEventArgs> CallbackEvent;
+        event Func<ActionEventArgs, Task> Callback;
+        AsyncEvent<Func<ActionEventArgs, Task>> CallbackEvent { get; set; }
+    }
+
+    public class AssemblyInstanceInfo
+    {
+        public AssemblyInstanceInfo(Assembly baseAssembly)
+        {
+            Assembly = baseAssembly;
+        }
+
+        public Assembly Assembly { get; }
+
+        public Type Type => Assembly.GetType();
+    }
+
+    public class PluginInstance
+    {
+        public IPlugin Instance;
+        public PluginStatus Status;
+
+        public PluginInstance(IPlugin instance, PluginStatus status)
+        {
+            Instance = instance;
+            Status = status;
+        }
     }
 
     [Serializable]
@@ -46,22 +71,20 @@ namespace Convex.Resources.Plugin {
     [Serializable]
     public class ActionEventArgs : EventArgs {
         public PluginActionType ActionType;
-        public string ExecutingDomain;
-        public string PluginName;
+        //public string ExecutingDomain;
+        //public string PluginName;
         public object Result;
 
         public ActionEventArgs(PluginActionType actionType, object result = null) {
             Result = result;
             ActionType = actionType;
-            ExecutingDomain = AppDomain.CurrentDomain.FriendlyName;
-            PluginName = Assembly.GetExecutingAssembly().GetName().Name;
+            //ExecutingDomain = AppDomain.CurrentDomain.FriendlyName;
+            //PluginName = Assembly.GetExecutingAssembly().GetName().Name;
         }
     }
 
     public enum PluginActionType {
         Log,
-        Load,
-        Unload,
         RegisterMethod,
         SendMessage,
         SignalTerminate

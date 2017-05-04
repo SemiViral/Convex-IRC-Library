@@ -5,18 +5,18 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Convex;
-using Convex.Net;
+using System.Threading.Tasks;
+using Convex.Plugins.Calculator;
 using Convex.Resources.Plugin;
 using Convex.Types;
+using Convex.Types.Events;
 using Convex.Types.References;
-using Core.Calculator;
 using Newtonsoft.Json.Linq;
 
 #endregion
 
-namespace Core {
-    public class Core : MarshalByRefObject, IPlugin {
+namespace Convex.Plugins {
+    public class Core : IPlugin {
         private readonly InlineCalculator calculator = new InlineCalculator();
         private readonly Regex youtubeRegex = new Regex(@"(?i)http(?:s?)://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)(?<ID>[\w\-]+)(&(amp;)?[\w\?=‌​]*)?", RegexOptions.Compiled);
 
@@ -27,59 +27,58 @@ namespace Core {
 
         public PluginStatus Status { get; private set; } = PluginStatus.Stopped;
 
-        public void Start() {
-            calculator.LogEntryEventHandler += Log;
+        public event Func<ActionEventArgs, Task> Callback {
+            add {
+                CallbackEvent.Add(value);
+            }
+            remove {
+                CallbackEvent.Remove(value);
+            }
+        } 
+        public AsyncEvent<Func<ActionEventArgs, Task>> CallbackEvent { get; set; }
 
-            DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Quit, new KeyValuePair<string, string>("quit", "terminates bot execution")));
+        public async Task Start() {
+            await DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Quit, new KeyValuePair<string, string>("quit", "terminates bot execution")));
 
-            DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Reload, new KeyValuePair<string, string>("reload", "reloads the plugin domain. bot execution")));
+            //DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Reload, new KeyValuePair<string, string>("reload", "reloads the plugin domain. bot execution")));
 
-            DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Eval, new KeyValuePair<string, string>("eval", "(<expression>) — evaluates given mathematical expression.")));
+            await DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Eval, new KeyValuePair<string, string>("eval", "(<expression>) — evaluates given mathematical expression.")));
 
-            DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Join, new KeyValuePair<string, string>("join", "(<channel> *<message>) — joins specified channel.")));
+            await DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Join, new KeyValuePair<string, string>("join", "(<channel> *<message>) — joins specified channel.")));
 
-            DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Part, new KeyValuePair<string, string>("part", "(<channel> *<message>) — parts from specified channel.")));
+            await DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Part, new KeyValuePair<string, string>("part", "(<channel> *<message>) — parts from specified channel.")));
 
-            DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, ListChannels, new KeyValuePair<string, string>("channels", "returns a list of connected channels.")));
+            await DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, ListChannels, new KeyValuePair<string, string>("channels", "returns a list of connected channels.")));
 
-            DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Define, new KeyValuePair<string, string>("define", "(<word> *<part of speech>) — returns definition for given word.")));
+            await DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Define, new KeyValuePair<string, string>("define", "(<word> *<part of speech>) — returns definition for given word.")));
 
-            DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Lookup, new KeyValuePair<string, string>("lookup", "(<term/phrase>) — returns the wikipedia summary of given term or phrase.")));
+            await DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, Lookup, new KeyValuePair<string, string>("lookup", "(<term/phrase>) — returns the wikipedia summary of given term or phrase.")));
 
-            DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, ListUsers, new KeyValuePair<string, string>("users", "returns a list of stored user realnames.")));
+            await DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, ListUsers, new KeyValuePair<string, string>("users", "returns a list of stored user realnames.")));
 
-            DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, YouTubeLinkResponse));
+            await DoCallback(PluginActionType.RegisterMethod, new MethodRegistrar(Commands.PRIVMSG, YouTubeLinkResponse));
 
-            Log(IrcLogEntryType.System, $"{Name} loaded.");
+            await Log($"{Name} loaded.");
         }
 
-        public void Stop() {
+        public async Task Stop() {
             if (Status.Equals(PluginStatus.Running) ||
                 Status.Equals(PluginStatus.Processing)) {
-                Log(IrcLogEntryType.System, $"Stop called but process is running from: {Name}");
+                await Log($"Stop called but process is running from: {Name}");
             } else {
-                Log(IrcLogEntryType.System, $"Stop called from: {Name}");
-                Call_Die();
+                await Log($"Stop called from: {Name}");
+                await Call_Die();
             }
         }
-
-        public void Log(IrcLogEntryType logType, string message) {
-            DoCallback(PluginActionType.Log, new LogEntryEventArgs(logType, message));
-        }
-
-        public void Call_Die() {
+        
+        public async Task Call_Die() {
             Status = PluginStatus.Stopped;
-            Log(IrcLogEntryType.System, $"Calling die, stopping process, sending unload —— from: {Name}");
+            await Log($"Calling die, stopping process, sending unload —— from: {Name}");
         }
+        
 
-        public event EventHandler<ActionEventArgs> CallbackEvent;
-
-        private void Log(object source, LogEntryEventArgs logEntryEventArgs) {
-            Log(logEntryEventArgs.EntryType, logEntryEventArgs.Message);
-        }
-
-        public void DoCallback(ActionEventArgs e) {
-            CallbackEvent?.Invoke(this, e);
+        private async Task Log(params string[] args) {
+            await DoCallback(PluginActionType.Log, string.Join(" ", args));
         }
 
         /// <summary>
@@ -87,54 +86,60 @@ namespace Core {
         /// </summary>
         /// <param name="actionType"></param>
         /// <param name="result"></param>
-        public void DoCallback(PluginActionType actionType, object result = null) {
-            CallbackEvent?.Invoke(this, new ActionEventArgs(actionType, result));
+        public async Task DoCallback(PluginActionType actionType, object result = null)
+        {
+            await DoCallback(new ActionEventArgs(actionType, result));
         }
 
-        private void Reload(object source, ChannelMessagedEventArgs e) {
-            if (e.Message.SplitArgs.Count < 2 ||
-                !e.Message.SplitArgs[1].Equals("reload"))
-                return;
 
-            Status = PluginStatus.Processing;
-
-            SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
-
-            if (e.Root.GetUser(e.Message.Realname).Access > 1) {
-                message.Message = "Insufficient permissions.";
-                DoCallback(PluginActionType.SendMessage, message);
-                return;
-            }
-
-            Status = PluginStatus.Running;
-
-            message.Message = "Attempting to reload plugins.";
-            DoCallback(PluginActionType.SendMessage, message);
-
-            try {
-                DoCallback(PluginActionType.Unload);
-                DoCallback(PluginActionType.Load);
-            } catch (Exception ex) {
-                message.Message = "Error occured reloading plugins.";
-                DoCallback(PluginActionType.SendMessage, message);
-                Log(IrcLogEntryType.Error, $"Error reloading plugins: {ex}");
-                return;
-            }
-
-            message.Message = "Sucessfully reloaded plugins.";
-            DoCallback(PluginActionType.SendMessage, message);
+        public async Task DoCallback(ActionEventArgs e) {
+            await CallbackEvent.InvokeAsync(e);
         }
 
-        private void Quit(object source, ChannelMessagedEventArgs e) {
+        //private void Reload(object source, ChannelMessagedEventArgs e) {
+        //    if (e.Message.SplitArgs.Count < 2 ||
+        //        !e.Message.SplitArgs[1].Equals("reload"))
+        //        return;
+
+        //    Status = PluginStatus.Processing;
+
+        //    SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
+
+        //    if (e.Root.GetUser(e.Message.Realname).Access > 1) {
+        //        message.Message = "Insufficient permissions.";
+        //        DoCallback(PluginActionType.SendMessage, message);
+        //        return;
+        //    }
+
+        //    Status = PluginStatus.Running;
+
+        //    message.Message = "Attempting to reload plugins.";
+        //    DoCallback(PluginActionType.SendMessage, message);
+
+        //    try {
+        //        DoCallback(PluginActionType.Unload);
+        //        DoCallback(PluginActionType.Load);
+        //    } catch (Exception ex) {
+        //        message.Message = "Error occured reloading plugins.";
+        //        DoCallback(PluginActionType.SendMessage, message);
+        //        Log(IrcLogEntryType.Error, $"Error reloading plugins: {ex}");
+        //        return;
+        //    }
+
+        //    message.Message = "Sucessfully reloaded plugins.";
+        //    DoCallback(PluginActionType.SendMessage, message);
+        //}
+
+        private async Task Quit(ChannelMessagedEventArgs e) {
             if (e.Message.SplitArgs.Count < 2 ||
                 !e.Message.SplitArgs[1].Equals("quit"))
                 return;
 
-            DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, "Shutting down."));
-            DoCallback(PluginActionType.SignalTerminate);
+            await DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, "Shutting down."));
+            await DoCallback(PluginActionType.SignalTerminate);
         }
 
-        private void Eval(object source, ChannelMessagedEventArgs e) {
+        private async Task Eval(ChannelMessagedEventArgs e) {
             if (e.Message.SplitArgs.Count < 2 ||
                 !e.Message.SplitArgs[1].Equals("eval"))
                 return;
@@ -161,12 +166,12 @@ namespace Core {
                 }
             }
 
-            DoCallback(PluginActionType.SendMessage, message);
+            await DoCallback(PluginActionType.SendMessage, message);
 
             Status = PluginStatus.Stopped;
         }
 
-        private void Join(object source, ChannelMessagedEventArgs e) {
+        private async Task Join(ChannelMessagedEventArgs e) {
             if (e.Message.SplitArgs.Count < 2 ||
                 !e.Message.SplitArgs[1].Equals("join"))
                 return;
@@ -175,31 +180,31 @@ namespace Core {
 
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
-            if (e.Root.GetUser(e.Message.Realname).Access > 1)
+            if (e.Caller.GetUser(e.Message.Realname).Access > 1)
                 message.Message = "Insufficient permissions.";
             else if (e.Message.SplitArgs.Count < 3)
                 message.Message = "Insufficient parameters. Type 'eve help join' to view command's help index.";
             else if (e.Message.SplitArgs.Count < 2 ||
                      !e.Message.SplitArgs[2].StartsWith("#"))
                 message.Message = "Channel name must start with '#'.";
-            else if (e.Root.Server.ChannelExists(e.Message.SplitArgs[2].ToLower()))
+            else if (e.Caller.Server.ChannelExists(e.Message.SplitArgs[2].ToLower()))
                 message.Message = "I'm already in that channel.";
 
             Status = PluginStatus.Running;
 
             if (string.IsNullOrEmpty(message.Message)) {
-                DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.JOIN, string.Empty, e.Message.SplitArgs[2]));
-                e.Root.Server.AddChannel(e.Message.SplitArgs[2].ToLower());
+                await DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.JOIN, string.Empty, e.Message.SplitArgs[2]));
+                e.Caller.Server.AddChannel(e.Message.SplitArgs[2].ToLower());
 
                 message.Message = $"Successfully joined channel: {e.Message.SplitArgs[2]}.";
             }
 
-            DoCallback(PluginActionType.SendMessage, message);
+            await DoCallback(PluginActionType.SendMessage, message);
 
             Status = PluginStatus.Stopped;
         }
 
-        private void Part(object source, ChannelMessagedEventArgs e) {
+        private async Task Part(ChannelMessagedEventArgs e) {
             if (e.Message.SplitArgs.Count < 2 ||
                 !e.Message.SplitArgs[1].Equals("part"))
                 return;
@@ -208,7 +213,7 @@ namespace Core {
 
             SimpleMessageEventArgs message = new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
-            if (e.Root.GetUser(e.Message.Realname).Access > 1)
+            if (e.Caller.GetUser(e.Message.Realname).Access > 1)
                 message.Message = "Insufficient permissions.";
             else if (e.Message.SplitArgs.Count < 3)
                 message.Message = "Insufficient parameters. Type 'eve help part' to view command's help index.";
@@ -216,40 +221,40 @@ namespace Core {
                      !e.Message.SplitArgs[2].StartsWith("#"))
                 message.Message = "Channel parameter must be a proper name (starts with '#').";
             else if (e.Message.SplitArgs.Count < 2 ||
-                     !e.Root.Server.ChannelExists(e.Message.SplitArgs[2]))
+                     !e.Caller.Server.ChannelExists(e.Message.SplitArgs[2]))
                 message.Message = "I'm not in that channel.";
 
             Status = PluginStatus.Running;
 
             if (!string.IsNullOrEmpty(message.Message)) {
-                DoCallback(PluginActionType.SendMessage, message);
+                await DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
 
             string channel = e.Message.SplitArgs[2].ToLower();
 
-            e.Root.Server.RemoveChannel(channel);
+            e.Caller.Server.RemoveChannel(channel);
 
             message.Message = $"Successfully parted channel: {channel}";
 
-            DoCallback(PluginActionType.SendMessage, message);
-            DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PART, string.Empty, $"{channel} Channel part invoked by: {e.Message.Nickname}"));
+            await DoCallback(PluginActionType.SendMessage, message);
+            await DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PART, string.Empty, $"{channel} Channel part invoked by: {e.Message.Nickname}"));
 
             Status = PluginStatus.Stopped;
         }
 
-        private void ListChannels(object source, ChannelMessagedEventArgs e) {
+        private async Task ListChannels(ChannelMessagedEventArgs e) {
             if (e.Message.SplitArgs.Count < 2 ||
                 !e.Message.SplitArgs[1].Equals("channels"))
                 return;
 
             Status = PluginStatus.Running;
-            DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Join(", ", e.Root.Server.GetAllChannels())));
+            await DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Join(", ", e.Caller.Server.Channels.Select(channel => channel.Name))));
 
             Status = PluginStatus.Stopped;
         }
 
-        private void YouTubeLinkResponse(object source, ChannelMessagedEventArgs e) {
+        private async Task YouTubeLinkResponse(ChannelMessagedEventArgs e) {
             if (!youtubeRegex.IsMatch(e.Message.Args))
                 return;
 
@@ -257,7 +262,7 @@ namespace Core {
 
             const int maxDescriptionLength = 100;
 
-            string getResponse = $"https://www.googleapis.com/youtube/v3/videos?part=snippet&id={youtubeRegex.Match(e.Message.Args).Groups["ID"]}&key={e.Root.GetApiKey("YouTube")}".HttpGet();
+            string getResponse = await $"https://www.googleapis.com/youtube/v3/videos?part=snippet&id={youtubeRegex.Match(e.Message.Args).Groups["ID"]}&key={e.Caller.GetApiKey("YouTube")}".HttpGet();
 
             JToken video = JObject.Parse(getResponse)["items"][0]["snippet"];
             string channel = (string)video["channelTitle"];
@@ -277,12 +282,12 @@ namespace Core {
                 description += "....";
             }
 
-            DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, $"{title} (by {channel}) — {description}"));
+            await DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, $"{title} (by {channel}) — {description}"));
 
             Status = PluginStatus.Stopped;
         }
 
-        private void Define(object source, ChannelMessagedEventArgs e) {
+        private async Task Define(ChannelMessagedEventArgs e) {
             if (e.Message.SplitArgs.Count < 2 ||
                 !e.Message.SplitArgs[1].Equals("define"))
                 return;
@@ -293,7 +298,7 @@ namespace Core {
 
             if (e.Message.SplitArgs.Count < 3) {
                 message.Message = "Insufficient parameters. Type 'eve help define' to view correct usage.";
-                DoCallback(PluginActionType.SendMessage, message);
+                await DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
 
@@ -303,11 +308,11 @@ namespace Core {
                 ? $"&part_of_speech={e.Message.SplitArgs[3]}"
                 : string.Empty;
 
-            JObject entry = JObject.Parse($"http://api.pearson.com/v2/dictionaries/laad3/entries?headword={e.Message.SplitArgs[2]}{partOfSpeech}&limit=1".HttpGet());
+            JObject entry = JObject.Parse(await $"http://api.pearson.com/v2/dictionaries/laad3/entries?headword={e.Message.SplitArgs[2]}{partOfSpeech}&limit=1".HttpGet());
 
             if ((int)entry.SelectToken("count") < 1) {
                 message.Message = "Query returned no results.";
-                DoCallback(PluginActionType.SendMessage, message);
+                await DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
 
@@ -336,12 +341,12 @@ namespace Core {
                 returnMessage += $" (ex. {_out["example"]})";
 
             message.Message = returnMessage;
-            DoCallback(PluginActionType.SendMessage, message);
+            await DoCallback(PluginActionType.SendMessage, message);
 
             Status = PluginStatus.Stopped;
         }
 
-        private void Lookup(object source, ChannelMessagedEventArgs e) {
+        private async Task Lookup(ChannelMessagedEventArgs e) {
             Status = PluginStatus.Processing;
 
             if (e.Message.SplitArgs.Count < 2 ||
@@ -352,20 +357,20 @@ namespace Core {
 
             if (e.Message.SplitArgs.Count < 3) {
                 message.Message = "Insufficient parameters. Type 'eve help lookup' to view correct usage.";
-                DoCallback(PluginActionType.SendMessage, message);
+                await DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
 
             Status = PluginStatus.Running;
 
             string query = string.Join(" ", e.Message.SplitArgs.Skip(1));
-            string response = $"https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro=&explaintext=&titles={query}".HttpGet();
+            string response = await $"https://en.wikipedia.org/w/api.php?format=json&action=query&prop=extracts&exintro=&explaintext=&titles={query}".HttpGet();
 
             JToken pages = JObject.Parse(response)["query"]["pages"].Values().First();
 
             if (string.IsNullOrEmpty((string)pages["extract"])) {
                 message.Message = "Query failed to return results. Perhaps try a different term?";
-                DoCallback(PluginActionType.SendMessage, message);
+                await DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
 
@@ -373,26 +378,26 @@ namespace Core {
 
             message.Target = e.Message.Nickname;
 
-            foreach (string splitMessage in fullReplyStr.Split(400)) {
+            foreach (string splitMessage in fullReplyStr.SplitByLength(400)) {
                 message.Message = splitMessage;
-                DoCallback(PluginActionType.SendMessage, message);
+                await DoCallback(PluginActionType.SendMessage, message);
             }
 
             Status = PluginStatus.Stopped;
         }
 
-        private void ListUsers(object source, ChannelMessagedEventArgs e) {
+        private  async Task ListUsers(ChannelMessagedEventArgs e) {
             if (e.Message.SplitArgs.Count < 2 ||
                 !e.Message.SplitArgs[1].Equals("users"))
                 return;
 
             Status = PluginStatus.Running;
-            DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Join(", ", e.Root.GetAllUsernames())));
+            await DoCallback(PluginActionType.SendMessage, new SimpleMessageEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Join(", ", e.Caller.GetAllUsers())));
 
             Status = PluginStatus.Stopped;
         }
 
-        private void Set(object source, ChannelMessagedEventArgs e) {
+        private async Task Set(ChannelMessagedEventArgs e) {
             if (e.Message.SplitArgs.Count < 2 ||
                 !e.Message.SplitArgs[1].Equals("set"))
                 return;
@@ -403,11 +408,11 @@ namespace Core {
 
             if (e.Message.SplitArgs.Count < 5) {
                 message.Message = "Insufficient parameters. Type 'eve help lookup' to view correct usage.";
-                DoCallback(PluginActionType.SendMessage, message);
+                await DoCallback(PluginActionType.SendMessage, message);
                 return;
             }
 
-            if (e.Root.GetUser(e.Message.Nickname).Access > 0)
+            if (e.Caller.GetUser(e.Message.Nickname).Access > 0)
                 message.Message = "Insufficient permissions.";
 
             //e.Root.GetUser()

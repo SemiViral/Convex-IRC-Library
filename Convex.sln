@@ -3,26 +3,20 @@ Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
 VisualStudioVersion = 15.0.26403.3
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Convex", "Convex\Convex.csproj", "{DE945708-3F13-446C-B6FE-6F3389F87BA2}"
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Example", "Example\Example.csproj", "{4176DE43-7109-4AF9-97F8-68439A47F7AE}"
-	ProjectSection(ProjectDependencies) = postProject
-		{5BC9BD56-3EFB-4E87-AFCA-FF9C6FF359A2} = {5BC9BD56-3EFB-4E87-AFCA-FF9C6FF359A2}
-	EndProjectSection
-EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Core", "Core\Core.csproj", "{5BC9BD56-3EFB-4E87-AFCA-FF9C6FF359A2}"
-	ProjectSection(ProjectDependencies) = postProject
-		{DE945708-3F13-446C-B6FE-6F3389F87BA2} = {DE945708-3F13-446C-B6FE-6F3389F87BA2}
-	EndProjectSection
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{3BF5F7B5-79CC-4110-9CE3-63C84484EFDF}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
 		CHANGELOG.md = CHANGELOG.md
-		Example\bin\Debug\config.json = Example\bin\Debug\config.json
-		Example\bin\Debug\Log.txt = Example\bin\Debug\Log.txt
+		Example\bin\Debug\netcoreapp1.1\Resources\config.json = Example\bin\Debug\netcoreapp1.1\Resources\config.json
+		Example\bin\Debug\netcoreapp1.1\Resources\Log.txt = Example\bin\Debug\netcoreapp1.1\Resources\Log.txt
 		README.md = README.md
 	EndProjectSection
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Convex", "Convex\Convex.csproj", "{1178458F-984E-4C55-8A06-117F346B068A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Convex.Plugins.Core", "Convex.Plugins.Core\Convex.Plugins.Core.csproj", "{C7DBA072-88F3-4BB7-BD85-933CC8E60E1B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Convex.Example", "Example\Convex.Example.csproj", "{E6B71FCE-BD96-43C3-9ADA-469B91A13940}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -30,18 +24,18 @@ Global
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{DE945708-3F13-446C-B6FE-6F3389F87BA2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{DE945708-3F13-446C-B6FE-6F3389F87BA2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{DE945708-3F13-446C-B6FE-6F3389F87BA2}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{DE945708-3F13-446C-B6FE-6F3389F87BA2}.Release|Any CPU.Build.0 = Release|Any CPU
-		{4176DE43-7109-4AF9-97F8-68439A47F7AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{4176DE43-7109-4AF9-97F8-68439A47F7AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{4176DE43-7109-4AF9-97F8-68439A47F7AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{4176DE43-7109-4AF9-97F8-68439A47F7AE}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5BC9BD56-3EFB-4E87-AFCA-FF9C6FF359A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5BC9BD56-3EFB-4E87-AFCA-FF9C6FF359A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5BC9BD56-3EFB-4E87-AFCA-FF9C6FF359A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5BC9BD56-3EFB-4E87-AFCA-FF9C6FF359A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1178458F-984E-4C55-8A06-117F346B068A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1178458F-984E-4C55-8A06-117F346B068A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1178458F-984E-4C55-8A06-117F346B068A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1178458F-984E-4C55-8A06-117F346B068A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C7DBA072-88F3-4BB7-BD85-933CC8E60E1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C7DBA072-88F3-4BB7-BD85-933CC8E60E1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C7DBA072-88F3-4BB7-BD85-933CC8E60E1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C7DBA072-88F3-4BB7-BD85-933CC8E60E1B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E6B71FCE-BD96-43C3-9ADA-469B91A13940}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E6B71FCE-BD96-43C3-9ADA-469B91A13940}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E6B71FCE-BD96-43C3-9ADA-469B91A13940}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E6B71FCE-BD96-43C3-9ADA-469B91A13940}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

@@ -2,15 +2,17 @@
 
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
+using System.Threading.Tasks;
 using Convex.Net;
+using Convex.Types.Events;
 using Convex.Types.References;
+using Serilog;
 
 #endregion
 
 namespace Convex.Types {
-    public class Server : MarshalByRefObject, IDisposable {
+    public class Server : IDisposable {
         public Connection Connection;
 
         public Server(string address, int port) {
@@ -21,11 +23,12 @@ namespace Convex.Types {
 
         public bool Identified { get; set; }
         public bool Initialised { get; private set; }
-        public bool Execute { get; internal set; }
+        public bool Executing { get; internal set; }
 
         public List<Channel> Channels { get; }
 
-        public List<string> Inhabitants => Channels.SelectMany(e => e.Inhabitants).ToList();
+        public List<string> Inhabitants => Channels.SelectMany(e => e.Inhabitants)
+            .ToList();
 
         #region dispose
 
@@ -34,42 +37,43 @@ namespace Convex.Types {
 
             Identified = false;
             Initialised = false;
-            Execute = false;
+            Executing = false;
         }
 
         #endregion
 
         #region runtime
 
-        public void Queue(Bot caller) {
-            WorkItem(caller);
+        public async Task QueueAsync(Client caller) {
+            await WorkItem(caller);
         }
 
-        private void WorkItem(Bot caller) {
-            string rawData = ListenToStream();
+        private async Task WorkItem(Client caller) {
+            Executing = true;
+
+            string rawData = await ListenAsync();
 
             if (string.IsNullOrEmpty(rawData) ||
-                CheckPing(rawData))
+                await CheckPing(rawData))
                 return;
-
-            Debug.WriteLine(rawData);
-            OnChannelMessage(new ChannelMessagedEventArgs(caller, new ChannelMessage(rawData)));
+                
+            await OnChannelMessaged(new ChannelMessagedEventArgs(caller, new ChannelMessage(rawData)));
         }
 
         /// <summary>
         ///     Recieves input from open stream
         /// </summary>
-        private string ListenToStream() {
+        private async Task<string> ListenAsync() {
             string data = string.Empty;
 
             try {
-                data = Connection.Read();
+                data = await Connection.ReadAsync();
             } catch (NullReferenceException) {
-                OnLog(new LogEntryEventArgs(IrcLogEntryType.Error, "Stream disconnected. Attempting to reconnect..."));
+                Log.Warning("Stream disconnected. Attempting to reconnect...");
 
-                InitializeStream();
+                await InitializeStream();
             } catch (Exception ex) {
-                OnLog(new LogEntryEventArgs(IrcLogEntryType.Error, ex.ToString()));
+                Log.Fatal(ex, "Exception occured while listening on stream");
             }
 
             return data;
@@ -80,51 +84,48 @@ namespace Convex.Types {
         /// </summary>
         /// <param name="rawData"></param>
         /// <returns></returns>
-        private bool CheckPing(string rawData) {
+        private async Task<bool> CheckPing(string rawData) {
             if (!rawData.StartsWith(Commands.PING))
                 return false;
 
-            Connection.SendData(Commands.PONG, rawData.Remove(0, 5)); // removes 'PING ' from string
+            await Connection.SendDataAsync(Commands.PONG, rawData.Remove(0, 5)); // removes 'PING ' from string
             return true;
         }
 
         #endregion
 
-        #region events 
+        #region events
 
-        public event EventHandler<LogEntryEventArgs> LogEntryEvent;
-        public event EventHandler<ChannelMessagedEventArgs> ChannelMessagedEvent;
+        private readonly AsyncEvent<Func<ChannelMessagedEventArgs, Task>> _channelMessaged = new AsyncEvent<Func<ChannelMessagedEventArgs, Task>>();
 
-        private void OnLog(LogEntryEventArgs e) {
-            LogEntryEvent?.Invoke(this, e);
+        public event Func<ChannelMessagedEventArgs, Task> ChannelMessaged {
+            add { _channelMessaged.Add(value); }
+            remove { _channelMessaged.Remove(value); }
         }
 
-        private void OnChannelMessage(ChannelMessagedEventArgs e) {
-            ChannelMessagedEvent?.Invoke(this, e);
+        private async Task OnChannelMessaged(ChannelMessagedEventArgs e) {
+            await _channelMessaged.InvokeAsync(e);
         }
 
         #endregion
 
         #region init
 
-        public void Initialise(string nickname, string realname) {
-            if (!(Initialised = InitializeStream()))
-                return;
+        public async Task Initialise() {
+            Initialised = await InitializeStream();
 
-            SendConnectionInfo(nickname, realname);
-
-            Execute = true;
+            Initialised = true;
         }
 
         /// <summary>
         ///     Initialises all stream connection
         /// </summary>
-        private bool InitializeStream(int maxRetries = 3) {
+        private async Task<bool> InitializeStream(int maxRetries = 3) {
             int retries = 0;
 
             while (retries <= maxRetries)
                 try {
-                    Connection.Connect();
+                    await Connection.ConnectAsync();
                     break;
                 } catch (Exception) {
                     Console.WriteLine(retries <= maxRetries
@@ -140,9 +141,9 @@ namespace Convex.Types {
         /// <summary>
         ///     sends client info to the server
         /// </summary>
-        private void SendConnectionInfo(string nickname, string realname) {
-            Connection.SendData(Commands.USER, nickname, "0 *", realname);
-            Connection.SendData(Commands.NICK, nickname);
+        public async Task SendConnectionInfo(string nickname, string realname) {
+            await Connection.SendDataAsync(Commands.USER, nickname, "0 *", realname);
+            await Connection.SendDataAsync(Commands.NICK, nickname);
         }
 
         #endregion
@@ -164,7 +165,6 @@ namespace Convex.Types {
 
         public bool ChannelExists(string channelName) => Channels.Any(channel => channel.Name.Equals(channelName));
         public int RemoveChannel(string name) => Channels.RemoveAll(channel => channel.Name.Equals(name));
-        public List<string> GetAllChannels() => Channels.Select(channel => channel.Name).ToList();
 
         #endregion
     }

@@ -1,21 +1,23 @@
 # Convex, an IRC library
 
-Convex is an IRC library that achieves the feats none other seem to do. It is idiomatic, easy to understand, and powerful.
+ Convex is an IRC library that (tries) to achieve idiomatic simplicty.
 
-Hopefully that's actually true!
+ This library targets the .NET Standard 1.6
 
 # Implementing the IPlugin interface
 
-Implementation of the IPlugin interface is fairly simple; use `Core.cs` as a guideline for this.
+ Implementation of the IPlugin interface is fairly simple; use `Core.cs` as a guideline for this.
 
 # Dependencies
 
-This project makes use of [Microsoft.Data.Sqlite](https://github.com/aspnet/Microsoft.Data.Sqlite) for its database and querying.
+ - Databasing: [Microsoft.Data.Sqlite](https://github.com/aspnet/Microsoft.Data.Sqlite)
 
-For the configuation template, [Json.Net](http://www.newtonsoft.com/json) is used.
+ - Config: [Json.Net](http://www.newtonsoft.com/json)
+
+ - Logging: [Serilog](https://serilog.net/)
 
 # Ending note
 
-For questions, or if I've missed anything, feel free to e-mail me at semiviral@gmail.com.
+ For questions, or if I've missed anything, feel free to e-mail me at semiviral@gmail.com.
 
-I will be doing more comprehensive documentation at some point. It may be a while.
+ I will be doing more comprehensive documentation at some point. It may be a while, as the product currently changed regularly.

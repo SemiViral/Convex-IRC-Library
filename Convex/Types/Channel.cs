@@ -1,13 +1,12 @@
 ﻿#region usings
 
-using System;
 using System.Collections.Generic;
 using Convex.Types.References;
 
 #endregion
 
 namespace Convex.Types {
-    public class Channel : MarshalByRefObject {
+    public class Channel {
         public Channel(string name) {
             Name = name;
             Topic = string.Empty;
@@ -21,8 +20,5 @@ namespace Convex.Types {
         public List<IrcMode> Modes { get; }
 
         public bool Connected { get; set; } = false;
-
-        // this should likely not be used often
-        public static implicit operator string(Channel channel) => channel.Name;
     }
 }

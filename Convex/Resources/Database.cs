@@ -2,49 +2,68 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Collections.Specialized;
+using System.ComponentModel;
 using System.IO;
 using System.Linq;
-using Convex.Net;
+using System.Threading.Tasks;
+using Convex.ComponentModel;
 using Convex.Types;
 using Microsoft.Data.Sqlite;
+using Serilog;
 
 #endregion
 
 namespace Convex.Resources {
     public class Database {
+        public ObservableCollection<User> Users;
+
         /// <summary>
         ///     Initialise connections to database and sets properties
         /// </summary>
-        public Database(string databaseLocation) {
-            Location = databaseLocation;
+        public Database(string databaseFilePath) {
+            Users = new ObservableCollection<User>();
+            Users.CollectionChanged += UserAdded;
 
-            if (!File.Exists(Location))
-                CreateDatabase();
-        }
-
-        internal static string Location { get; private set; }
-        internal static bool Connected { get; private set; }
-        internal event EventHandler<LogEntryEventArgs> LogEntryEventHandler;
-
-        private void CreateDatabase() {
-            Log(new LogEntryEventArgs(IrcLogEntryType.System, "Main database not found, creating."));
-
-            Query(this, new QueryEventArgs("CREATE TABLE users (id int, nickname string, realname string, access int, seen string)"));
-            Query(this, new QueryEventArgs("CREATE TABLE messages (id int, sender string, message string, datetime string)"));
-
+            FilePath = databaseFilePath;
             Connected = true;
         }
 
-        private static SqliteConnection GetConnection(string source) {
+        internal string FilePath { get; }
+        internal bool Connected { get; private set; }
+
+        public async Task Initialise() {
+            await CheckCreate();
+
+            foreach (User user in LoadUsers())
+                Users.Add(user);
+        }
+
+        public async Task CheckCreate() {
+            if (File.Exists(FilePath))
+                return;
+
+            Log.Information("Main database not found, creating.");
+
+            using (SqliteConnection connection = GetConnection(FilePath, SqliteOpenMode.ReadWriteCreate)) {
+                connection.Open();
+                await connection.QueryAsync(new QueryEventArgs("CREATE TABLE IF NOT EXISTS users (id int, nickname string, realname string, access int, seen string)"));
+                await connection.QueryAsync(new QueryEventArgs("CREATE TABLE IF NOT EXISTS messages (id int, sender string, message string, datetime string)"));
+            }
+        }
+
+        private static SqliteConnection GetConnection(string source, SqliteOpenMode mode = SqliteOpenMode.ReadWrite) {
             return new SqliteConnection(new SqliteConnectionStringBuilder {
-                DataSource = source
+                DataSource = source,
+                Mode = mode
             }.ToString());
         }
 
-        internal ICollection<User> GetAllUsers() {
+        internal ICollection<User> LoadUsers() {
             List<User> users = new List<User>();
 
-            using (SqliteConnection connection = GetConnection(Location)) {
+            using (SqliteConnection connection = GetConnection(FilePath)) {
                 connection.Open();
 
                 using (SqliteTransaction transaction = connection.BeginTransaction()) {
@@ -55,7 +74,8 @@ namespace Convex.Resources {
                     using (SqliteDataReader userEntries = getUsers.ExecuteReader()) {
                         while (userEntries.Read()) {
                             int id = Convert.ToInt32(userEntries.GetValue(0));
-                            string nickname = userEntries.GetValue(1).ToString();
+                            string nickname = userEntries.GetValue(1)
+                                .ToString();
                             string realname = (string)userEntries.GetValue(2);
                             int access = Convert.ToInt32(userEntries.GetValue(3));
                             DateTime seen = DateTime.Parse((string)userEntries.GetValue(4));
@@ -68,51 +88,15 @@ namespace Convex.Resources {
                 }
             }
 
-            ReadMessagesIntoUsers(users);
-            
+            ReadMessagesIntoUsers();
+
             return users;
-        }
-
-        private void ReadMessagesIntoUsers(ICollection<User> users) {
-            if (users.Count.Equals(0))
-                return;
-            using (SqliteConnection connection = GetConnection(Location)) {
-                connection.Open();
-
-                using (SqliteTransaction transaction = connection.BeginTransaction()) {
-                    SqliteCommand getMessages = connection.CreateCommand();
-                    getMessages.Transaction = transaction;
-                    getMessages.CommandText = "SELECT * FROM messages";
-
-                    using (SqliteDataReader messages = getMessages.ExecuteReader()) {
-                        while (messages.Read())
-                            users.SingleOrDefault(e => e.Id.Equals(Convert.ToInt32(messages["id"])))?.Messages.Add(new Message((int)messages["id"], (string)messages["sender"], (string)messages["message"], DateTime.Parse((string)messages["datetime"])));
-                    }
-
-                    transaction.Commit();
-                }
-            }
-            }
-
-        private static void Query(object source, QueryEventArgs e) {
-            using (SqliteConnection connection = GetConnection(Location)) {
-                connection.Open();
-
-                using (SqliteTransaction transaction = connection.BeginTransaction()) {
-                    SqliteCommand command = connection.CreateCommand();
-                    command.Transaction = transaction;
-                    command.CommandText = e.Query;
-                    command.ExecuteNonQuery();
-
-                    transaction.Commit();
-                }
-            }
         }
 
         internal int GetLastDatabaseId() {
             int id;
 
-            using (SqliteConnection connection = GetConnection(Location)) {
+            using (SqliteConnection connection = GetConnection(FilePath)) {
                 connection.Open();
 
                 using (SqliteTransaction transaction = connection.BeginTransaction()) {
@@ -128,10 +112,37 @@ namespace Convex.Resources {
             return id;
         }
 
+        private void ReadMessagesIntoUsers()
+        {
+            if (Users.Count.Equals(0))
+                return;
+
+            using (SqliteConnection connection = GetConnection(FilePath))
+            {
+                connection.Open();
+
+                using (SqliteTransaction transaction = connection.BeginTransaction())
+                {
+                    SqliteCommand getMessages = connection.CreateCommand();
+                    getMessages.Transaction = transaction;
+                    getMessages.CommandText = "SELECT * FROM messages";
+
+                    using (SqliteDataReader messages = getMessages.ExecuteReader())
+                    {
+                        while (messages.Read())
+                            Users.SingleOrDefault(e => e.Id.Equals(Convert.ToInt32(messages["id"])))
+                                ?.Messages.Add(new Message((int)messages["id"], (string)messages["sender"], (string)messages["message"], DateTime.Parse((string)messages["datetime"])));
+                    }
+
+                    transaction.Commit();
+                }
+            }
+        }
+
         public bool UserExists(string realname) {
             bool exists;
 
-            using (SqliteConnection connection = GetConnection(Location)) {
+            using (SqliteConnection connection = GetConnection(FilePath)) {
                 connection.Open();
 
                 using (SqliteTransaction transaction = connection.BeginTransaction()) {
@@ -147,10 +158,6 @@ namespace Convex.Resources {
             return exists;
         }
 
-        internal void CreateUser(User user) {
-            CreateUser(user.Id, user.Nickname, user.Realname, user.Seen);
-        }
-
         /// <summary>
         ///     Creates a new user and updates the users & userTimeouts collections
         /// </summary>
@@ -158,15 +165,66 @@ namespace Convex.Resources {
         /// <param name="nickname">nickname of user</param>
         /// <param name="realname">realname of user</param>
         /// <param name="seen">last time user was seen</param>
+        internal async Task CreateUserAsync(int access, string nickname, string realname, DateTime seen) {
+            Log.Information($"Creating database entry for {realname}.");
+
+            await GetConnection(FilePath)
+                .QueryAsync(new QueryEventArgs($"INSERT INTO users VALUES ({GetLastDatabaseId() + 1}, '{nickname}', '{realname}', {access}, '{seen}')"));
+        }
+
         internal void CreateUser(int access, string nickname, string realname, DateTime seen) {
-            Log(new LogEntryEventArgs(IrcLogEntryType.System, $"Creating database entry for {realname}."));
+            Log.Information($"Creating database entry for {realname}.");
 
-            Query(this, new QueryEventArgs($"INSERT INTO users VALUES ({GetLastDatabaseId() + 1}, '{nickname}', '{realname}', {access}, '{seen}')"));
+            GetConnection(FilePath)
+                .Query(new QueryEventArgs($"INSERT INTO users VALUES ({GetLastDatabaseId() + 1}, '{nickname}', '{realname}', {access}, '{seen}')"));
         }
 
-        private void Log(LogEntryEventArgs e) {
-            LogEntryEventHandler?.Invoke(this, e);
+        #region user automation
+
+        protected virtual void UserAdded(object source, NotifyCollectionChangedEventArgs e) {
+            if (!e.Action.Equals(NotifyCollectionChangedAction.Add))
+                return;
+
+            foreach (object item in e.NewItems) {
+                if (!(item is User))
+                    continue;
+
+                if (!UserExists(((User)item).Realname)) {
+                    User newUser = (User)item;
+                    CreateUser(newUser.Access, newUser.Nickname, newUser.Realname, newUser.Seen);
+                }
+
+                ((User)item).PropertyChanged += AutoUpdateUsers;
+                ((User)item).Messages.CollectionChanged += MessageAdded;
+            }
         }
+
+        protected virtual void MessageAdded(object source, NotifyCollectionChangedEventArgs e) {
+            if (!e.Action.Equals(NotifyCollectionChangedAction.Add))
+                return;
+
+            foreach (object item in e.NewItems) {
+                if (!(item is Message))
+                    continue;
+
+                Message message = (Message)item;
+
+                GetConnection(FilePath)
+                    .Query(new QueryEventArgs($"INSERT INTO messages VALUES ({message.Id}, '{message.Sender}', '{message.Contents}', '{message.Date}')"));
+            }
+        }
+
+        private void AutoUpdateUsers(object source, PropertyChangedEventArgs e) {
+            if (!(e is SpecialPropertyChangedEventArgs))
+                return;
+
+            SpecialPropertyChangedEventArgs castedArgs = (SpecialPropertyChangedEventArgs)e;
+
+            GetConnection(FilePath)
+                .Query(new QueryEventArgs($"UPDATE users SET {castedArgs.PropertyName}='{castedArgs.NewValue}' WHERE realname='{castedArgs.Name}'"));
+        }
+
+        #endregion
     }
 
     public class QueryEventArgs : EventArgs {

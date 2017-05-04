@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Convex;
 using Convex.Resources.Plugin;
 using Convex.Types;
@@ -10,21 +11,27 @@ using Convex.Types.References;
 #endregion
 
 namespace Example {
-    public class IrcBot : MarshalByRefObject, IDisposable {
-        private readonly Bot bot;
+    public class IrcBot : IDisposable {
+        private readonly Client bot;
 
         /// <summary>
         ///     Initialises class
         /// </summary>
         public IrcBot() {
-            bot = new Bot("config.json");
-            bot.Initialise();
-            RegisterMethods();
+            bot = new Client();
         }
 
         public string BotInfo => $"[Version {bot.Version}] Evealyn is an IRC bot created by SemiViral as a primary learning project for C#.";
 
-        public bool CanExecute => bot.Server.Execute;
+        public bool Executing => bot.Server.Executing;
+
+        public async Task Initialise() {
+            await bot.Initialise();
+            RegisterMethods();
+        }
+        public async Task Execute() {
+            await bot.Server.QueueAsync(bot);
+        }
 
         #region register methods
 
@@ -35,12 +42,12 @@ namespace Example {
             bot.Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.PRIVMSG, Info, new KeyValuePair<string, string>("info", "returns the basic information about this bot")));
         }
 
-        private void Info(object sender, ChannelMessagedEventArgs e) {
+        private async Task Info(ChannelMessagedEventArgs e) {
             if (e.Message.SplitArgs.Count < 2 ||
                 !e.Message.SplitArgs[1].Equals("info"))
                 return;
 
-            bot.Server.Connection.SendData(Commands.PRIVMSG, $"{e.Message.Origin} {BotInfo}");
+            await bot.Server.Connection.SendDataAsync(Commands.PRIVMSG, $"{e.Message.Origin} {BotInfo}");
         }
 
         #endregion

@@ -10,7 +10,7 @@ using Convex.ComponentModel;
 #endregion
 
 namespace Convex.Types {
-    public class User : MarshalByRefObject, INotifyPropertyChanged {
+    public class User : INotifyPropertyChanged {
         private int access;
         private int attempts;
         private int id;

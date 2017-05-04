@@ -5,15 +5,13 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
 using System.Text;
-using Convex.Net;
 
 #endregion
 
-namespace Core.Calculator {
+namespace Convex.Plugins.Calculator {
     public partial class InlineCalculator {
         private string expression;
-
-        public event EventHandler<LogEntryEventArgs> LogEntryEventHandler;
+        
         private Stack<double> operands;
         private Stack<string> operators;
 
@@ -204,9 +202,6 @@ namespace Core.Calculator {
         }
 
         private void ThrowException(string message) {
-            LogEntryEventHandler?.Invoke(this, new LogEntryEventArgs(IrcLogEntryType.Error, token));
-            LogEntryEventHandler?.Invoke(this, new LogEntryEventArgs(IrcLogEntryType.Error, operands.ToString()));
-            LogEntryEventHandler?.Invoke(this, new LogEntryEventArgs(IrcLogEntryType.Error, operators.ToString()));
             throw new CalculateException(message, tokenPos);
         }
     }

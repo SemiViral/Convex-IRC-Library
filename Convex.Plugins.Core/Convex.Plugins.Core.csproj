@@ -1,0 +1,13 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard1.6</TargetFramework>
+    <AssemblyName>Convex.Plugins.Core</AssemblyName>
+    <RootNamespace>Convex.Plugins</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Convex\Convex.csproj" />
+  </ItemGroup>
+
+</Project>

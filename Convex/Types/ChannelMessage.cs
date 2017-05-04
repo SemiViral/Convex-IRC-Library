@@ -96,12 +96,12 @@ namespace Convex.Types {
 
     [Serializable]
     public class ChannelMessagedEventArgs : EventArgs {
-        public ChannelMessagedEventArgs(Bot bot, ChannelMessage message) {
-            Root = bot;
+        public ChannelMessagedEventArgs(Client bot, ChannelMessage message) {
+            Caller = bot;
             Message = message;
         }
 
-        public Bot Root { get; }
+        public Client Caller { get; }
         public ChannelMessage Message { get; }
     }
 }
