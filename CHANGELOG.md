@@ -13,7 +13,7 @@
 
    - a note: logging to file doesn't work currently, will fix in a later patch
 
-## 1.3.2 — .NET Standard 1.6
+## 1.3.2 â€” .NET Standard 1.6
 
 #### General
 
@@ -26,7 +26,7 @@
  - Server's listener is now changed to be recursively triggered (see: `Server.cs, QueueAsync(Client caller)`).
  
  - Config now houses the default file paths as static strings.
-    - Along with this, the file paths for Database and Log in the config file are left blank. Iif left empty the default file paths will be used.
+    - Along with this, the file paths for Database and Log in the config file are left blank. If left empty the default file paths will be used.
 
  - `ObservableCollection<User> Users` has been moved to the `Database` class.
  
