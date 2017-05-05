@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using System.Threading.Tasks;
 using Convex.Net;
 using Convex.Resources;
@@ -77,7 +78,7 @@ namespace Convex {
 
         public string GetApiKey(string type) => config.ApiKeys[type];
 
-        public string Version => "4.6.1"; //Assembly.GetExecutingAssembly().GetName().Version;
+        public Version Version => Assembly.GetEntryAssembly().GetName().Version;
 
         #endregion
 

@@ -14,9 +14,8 @@ using Serilog;
 
 namespace Convex.Resources.Plugin {
     public class PluginHost {
-        private const string PLUGINS_DIRECTORY = @".\Plugins";
-
         private const string PLUGIN_MASK = "Convex.*.dll";
+        private static readonly string _pluginsDirectory = $"{AppContext.BaseDirectory}\\Plugins";
         private readonly AsyncEvent<Func<ActionEventArgs, Task>> pluginCallbackEvent = new AsyncEvent<Func<ActionEventArgs, Task>>();
 
         public List<PluginInstance> Plugins = new List<PluginInstance>();
@@ -49,7 +48,8 @@ namespace Convex.Resources.Plugin {
             if (ContainerByType(e.Message.Type) == null)
                 return;
 
-            await ContainerByType(e.Message.Type).InvokeAsync(e);
+            await ContainerByType(e.Message.Type)
+                .InvokeAsync(e);
         }
 
         public void RegisterMethod(MethodRegistrar methodRegistrar) {
@@ -63,7 +63,8 @@ namespace Convex.Resources.Plugin {
                 else
                     Commands.Add(methodRegistrar.Definition.Key, methodRegistrar.Definition.Value);
 
-            ContainerByType(methodRegistrar.CommandType).ChannelMessaged += methodRegistrar.Method;
+            ContainerByType(methodRegistrar.CommandType)
+                .ChannelMessaged += methodRegistrar.Method;
         }
 
         private MethodsContainer ContainerByType(string type) {
@@ -74,11 +75,11 @@ namespace Convex.Resources.Plugin {
         ///     Loads all plugins
         /// </summary>
         public void LoadPlugins() {
-            if (!Directory.Exists(PLUGINS_DIRECTORY))
-                Directory.CreateDirectory(PLUGINS_DIRECTORY);
+            if (!Directory.Exists(_pluginsDirectory))
+                Directory.CreateDirectory(_pluginsDirectory);
 
             // array of all filepaths that are found to match the PLUGIN_MASK
-            string[] pluginMatchAddresses = Directory.GetFiles(PLUGINS_DIRECTORY, PLUGIN_MASK, SearchOption.AllDirectories);
+            string[] pluginMatchAddresses = Directory.GetFiles(_pluginsDirectory, PLUGIN_MASK, SearchOption.AllDirectories);
 
             if (pluginMatchAddresses.Length.Equals(0)) {
                 Log.Information("No plugins to load.");
@@ -117,7 +118,9 @@ namespace Convex.Resources.Plugin {
         private static Type GetTypeInstance(string assemblyName) {
             AssemblyInstanceInfo pluginAssembly = new AssemblyInstanceInfo(Assembly.Load(new AssemblyName(assemblyName)));
 
-            return typeof(IPlugin).GetTypeInfo().IsAssignableFrom(pluginAssembly.Type.GetTypeInfo()).GetType();
+            return typeof(IPlugin).GetTypeInfo()
+                .IsAssignableFrom(pluginAssembly.Type.GetTypeInfo())
+                .GetType();
         }
 
         /// <summary>

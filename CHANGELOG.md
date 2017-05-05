@@ -1,4 +1,5 @@
 # 1.0.0
+
  - First release
 
 ## 1.2.0
@@ -45,6 +46,9 @@
 
  - Config file is now saved correctly.
 
-##### Current Issues
+## 1.3.3
 
- - Output from server is logged to the console twice.
+#### General
+
+ - Version is now assigned at runtime from assembly
+ - Plugins directory is now absolute from runtime root directory
