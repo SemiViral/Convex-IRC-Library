@@ -6,6 +6,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Convex.Net;
 using Convex.Types.Events;
+using Convex.Types.Messages;
 using Convex.Types.References;
 using Serilog;
 
@@ -56,7 +57,7 @@ namespace Convex.Types {
             if (string.IsNullOrEmpty(rawData) ||
                 await CheckPing(rawData))
                 return;
-                
+
             await OnChannelMessaged(new ChannelMessagedEventArgs(caller, new ChannelMessage(rawData)));
         }
 

@@ -1,22 +1,20 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio 15
-VisualStudioVersion = 15.0.26403.3
+VisualStudioVersion = 15.0.26403.7
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{3BF5F7B5-79CC-4110-9CE3-63C84484EFDF}"
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
 		CHANGELOG.md = CHANGELOG.md
-		Example\bin\Debug\netcoreapp1.1\Resources\config.json = Example\bin\Debug\netcoreapp1.1\Resources\config.json
-		Example\bin\Debug\netcoreapp1.1\Resources\Log.txt = Example\bin\Debug\netcoreapp1.1\Resources\Log.txt
 		README.md = README.md
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Convex", "Convex\Convex.csproj", "{1178458F-984E-4C55-8A06-117F346B068A}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Convex.Plugins.Core", "Convex.Plugins.Core\Convex.Plugins.Core.csproj", "{C7DBA072-88F3-4BB7-BD85-933CC8E60E1B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Convex.Example", "Convex.Example\Convex.Example.csproj", "{B75B9E9B-F7E0-472A-A3D6-B443E5267907}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Convex.Example", "Example\Convex.Example.csproj", "{E6B71FCE-BD96-43C3-9ADA-469B91A13940}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Convex.Plugin.Core", "Convex.Plugin.Core\Convex.Plugin.Core.csproj", "{35708A19-69E0-4459-895D-126CA56BB99D}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -28,14 +26,14 @@ Global
 		{1178458F-984E-4C55-8A06-117F346B068A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{1178458F-984E-4C55-8A06-117F346B068A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{1178458F-984E-4C55-8A06-117F346B068A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{C7DBA072-88F3-4BB7-BD85-933CC8E60E1B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{C7DBA072-88F3-4BB7-BD85-933CC8E60E1B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{C7DBA072-88F3-4BB7-BD85-933CC8E60E1B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{C7DBA072-88F3-4BB7-BD85-933CC8E60E1B}.Release|Any CPU.Build.0 = Release|Any CPU
-		{E6B71FCE-BD96-43C3-9ADA-469B91A13940}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{E6B71FCE-BD96-43C3-9ADA-469B91A13940}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{E6B71FCE-BD96-43C3-9ADA-469B91A13940}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{E6B71FCE-BD96-43C3-9ADA-469B91A13940}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B75B9E9B-F7E0-472A-A3D6-B443E5267907}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B75B9E9B-F7E0-472A-A3D6-B443E5267907}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B75B9E9B-F7E0-472A-A3D6-B443E5267907}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B75B9E9B-F7E0-472A-A3D6-B443E5267907}.Release|Any CPU.Build.0 = Release|Any CPU
+		{35708A19-69E0-4459-895D-126CA56BB99D}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{35708A19-69E0-4459-895D-126CA56BB99D}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{35708A19-69E0-4459-895D-126CA56BB99D}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{35708A19-69E0-4459-895D-126CA56BB99D}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

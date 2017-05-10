@@ -11,7 +11,6 @@
  - The old `ExecuteRuntime` method is now fired by an event in the `Server` class
 
  - Stream objects now have a custom base class, `Stream` in `Convex.Resources`.
-
    - a note: logging to file doesn't work currently, will fix in a later patch
 
 ## 1.3.2 — .NET Standard 1.6
@@ -51,4 +50,36 @@
 #### General
 
  - Version is now assigned at runtime from assembly
+
  - Plugins directory is now absolute from runtime root directory
+
+## 1.3.5
+
+#### General
+
+ - `Config` has changed to `ClientConfiguration`
+    - `Server` object no longer in the object, or the JSON config file.
+
+ - There is now a base type `Message`, which `ChannelMessage` and `SimpleMessage` (previously `SimpleReturnMessage`) inherit from.
+
+ - Fixed some possible encapsulation issues with public/private methods and properties
+
+ - Assembly version in `Client.cs` and `Core.cs` are now accurately assigned
+
+ - Moved the `Convex.Plugins.Core` to namespace contents to `Convex.Plugin.Core`, in accordance with Convex namespace naming conventions.
+
+#### Plugins
+ 
+ - The code in `PluginHost.cs` should garner a clearer structure
+
+#### Logging
+
+ - `logger` in `Client.cs` is now a backing field for the property `Logger`.
+ 
+ - The property automatically disposes of the previous logger when set, and assigns the new static logger in `Log.Logger`
+
+ - If writeToConsole in `Client` constructor is *TRUE*, console is assured to be activated.
+
+#### Bug Fixes
+
+ - Plugins are now properly loaded into the assembly.

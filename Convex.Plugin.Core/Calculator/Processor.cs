@@ -4,7 +4,7 @@ using System;
 
 #endregion
 
-namespace Convex.Plugins.Calculator {
+namespace Convex.Plugin.Calculator {
     public partial class InlineCalculator {
         private void Calculate(string op, double op1, double op2) {
             try {

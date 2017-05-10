@@ -3,14 +3,14 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Convex;
 using Convex.Resources.Plugin;
 using Convex.Types;
+using Convex.Types.Messages;
 using Convex.Types.References;
 
 #endregion
 
-namespace Example {
+namespace Convex.Example {
     public class IrcBot : IDisposable {
         private readonly Client bot;
 
@@ -18,10 +18,11 @@ namespace Example {
         ///     Initialises class
         /// </summary>
         public IrcBot() {
-            bot = new Client();
+            bot = new Client("irc.foonetic.net", 6667, true);
+            bot.Server.Channels.Add(new Channel("#testgrounds"));
         }
 
-        public string BotInfo => $"[Version {bot.Version}] Evealyn is an IRC bot created by SemiViral as a primary learning project for C#.";
+        private string BotInfo => $"[Version {bot.Version}] Evealyn is an IRC bot created by SemiViral as a primary learning project for C#.";
 
         public bool Executing => bot.Server.Executing;
 
@@ -29,6 +30,7 @@ namespace Example {
             await bot.Initialise();
             RegisterMethods();
         }
+
         public async Task Execute() {
             await bot.Server.QueueAsync(bot);
         }
@@ -39,7 +41,7 @@ namespace Example {
         ///     Register all methods
         /// </summary>
         private void RegisterMethods() {
-            bot.Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.PRIVMSG, Info, new KeyValuePair<string, string>("info", "returns the basic information about this bot")));
+            bot.Wrapper.RegisterMethod(new MethodRegistrar(Commands.PRIVMSG, Info, new KeyValuePair<string, string>("info", "returns the basic information about this bot")));
         }
 
         private async Task Info(ChannelMessagedEventArgs e) {

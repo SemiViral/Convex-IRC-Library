@@ -8,9 +8,9 @@ using Convex.Types.References;
 
 #endregion
 
-namespace Convex.Types {
+namespace Convex.Types.Messages {
     [Serializable]
-    public class ChannelMessage {
+    public class ChannelMessage : Message {
         // Regex for parsing RawMessage messages
         private static readonly Regex _messageRegex = new Regex(@"^:(?<Sender>[^\s]+)\s(?<Type>[^\s]+)\s(?<Recipient>[^\s]+)\s?:?(?<Args>.*)", RegexOptions.Compiled);
 
@@ -22,7 +22,7 @@ namespace Convex.Types {
             RawMessage = rawData.Trim();
 
             if (rawData.StartsWith("ERROR")) {
-                Type = Commands.ERROR;
+                Command = Commands.ERROR;
                 Args = rawData.Substring(rawData.IndexOf(' ') + 1);
                 return;
             }
@@ -33,16 +33,15 @@ namespace Convex.Types {
 
         public string RawMessage { get; }
 
-        public DateTime Timestamp { get; private set; }
-        
         public string Nickname { get; private set; }
         public string Realname { get; private set; }
         public string Hostname { get; private set; }
         public string Origin { get; private set; }
-        public string Type { get; private set; }
-        public string Args { get; private set; }
         public List<string> SplitArgs { get; private set; }
 
+        /// <summary>
+        ///     For parsing IRCv3 message tags
+        /// </summary>
         private void ParseTagsPrefix() {
             if (!RawMessage.StartsWith("@"))
                 return;
@@ -72,7 +71,7 @@ namespace Convex.Types {
             Nickname = mVal.Groups["Sender"].Value;
             Realname = mVal.Groups["Sender"].Value.ToLower();
             Hostname = mVal.Groups["Sender"].Value;
-            Type = mVal.Groups["Type"].Value;
+            Command = mVal.Groups["Type"].Value;
             Origin = mVal.Groups["Recipient"].Value.StartsWith(":")
                 ? mVal.Groups["Recipient"].Value.Substring(1)
                 : mVal.Groups["Recipient"].Value;
@@ -80,7 +79,9 @@ namespace Convex.Types {
             Args = mVal.Groups["Args"].Value.DeliminateSpaces();
 
             // splits the first 5 sections of the message for parsing
-            SplitArgs = Args.Split(new[] {' '}, 4).Select(arg => arg.Trim()).ToList();
+            SplitArgs = Args.Split(new[] {' '}, 4)
+                .Select(arg => arg.Trim())
+                .ToList();
 
             if (!sMatch.Success)
                 return;

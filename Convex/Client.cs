@@ -5,12 +5,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Threading.Tasks;
 using Convex.Net;
 using Convex.Resources;
 using Convex.Resources.Plugin;
 using Convex.Types;
 using Convex.Types.Events;
+using Convex.Types.Messages;
 using Convex.Types.References;
 using Newtonsoft.Json;
 using Serilog;
@@ -19,33 +21,51 @@ using Serilog.Core;
 #endregion
 
 namespace Convex {
-    public class Client : IDisposable {
-        private readonly Config config;
-        private readonly Logger logger;
+    public sealed class Client : IDisposable {
+        private readonly ClientConfiguration ClientConfiguration;
+        public readonly PluginWrapper Wrapper;
 
         private bool disposed;
+        private Logger logger;
 
         /// <summary>
         ///     Initialises class
         /// </summary>
-        public Client() {
-            if (!Directory.Exists(Config.DefaultResourceDirectory))
-                Directory.CreateDirectory(Config.DefaultResourceDirectory);
+        public Client(string address, int port, bool writeToConsole) {
+            if (!Directory.Exists(ClientConfiguration.DefaultResourceDirectory))
+                Directory.CreateDirectory(ClientConfiguration.DefaultResourceDirectory);
 
-            Config.CheckCreateConfig(Config.DefaultConfigFilePath);
-            config = JsonConvert.DeserializeObject<Config>(File.ReadAllText(Config.DefaultConfigFilePath));
+            ClientConfiguration.CheckCreateConfig(ClientConfiguration.DefaultFilePath);
+            ClientConfiguration = JsonConvert.DeserializeObject<ClientConfiguration>(File.ReadAllText(ClientConfiguration.DefaultFilePath));
+
+            LoggerConfiguration logConfig = new LoggerConfiguration().WriteTo.Async(sinkConfig => sinkConfig.File(ClientConfiguration.LogFilePath));
+
+            if (writeToConsole) {
+                AllocConsole();
+                logger = logConfig.WriteTo.LiterateConsole()
+                    .CreateLogger();
+            }
 
             Wrapper = new PluginWrapper();
-            MainDatabase = new Database(config.DatabaseFilePath);
-            logger = new LoggerConfiguration().WriteTo.LiterateConsole()
-                .WriteTo.Async(sinkConfig => sinkConfig.File(config.LogFilePath))
-                .CreateLogger();
-            Log.Logger = logger;
+            MainDatabase = new Database(ClientConfiguration.DatabaseFilePath);
+
+            Server = new Server(address, port);
         }
 
-        ~Client() {
-            Dispose(false);
+        private Logger Logger {
+            get { return logger; }
+            set {
+                if (logger == value)
+                    return;
+
+                logger = value;
+                Log.Logger = logger;
+            }
         }
+
+        [DllImport("kernel32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool AllocConsole();
 
         /// <summary>
         ///     Returns a specified command from commands list
@@ -68,17 +88,18 @@ namespace Convex {
         #region variables
 
         private Database MainDatabase { get; }
-        public PluginWrapper Wrapper { get; }
 
-        internal bool Initialised { get; set; }
+        public bool Initialised { get; set; }
 
-        public Server Server => config.Server;
+        public Server Server { get; }
 
-        public List<string> IgnoreList { get; internal set; } = new List<string>();
+        public List<string> IgnoreList => ClientConfiguration.IgnoreList;
 
-        public string GetApiKey(string type) => config.ApiKeys[type];
+        public string GetApiKey(string type) => ClientConfiguration.ApiKeys[type];
 
-        public Version Version => Assembly.GetEntryAssembly().GetName().Version;
+        public Version Version => new AssemblyName(GetType()
+            .GetTypeInfo()
+            .Assembly.FullName).Version;
 
         #endregion
 
@@ -94,14 +115,14 @@ namespace Convex {
             remove { terminatedEvent.Remove(value); }
         }
 
-        public event Func<EventArgs, Task> Initiated {
-            add { initiatedEvent.Add(value); }
-            remove { initiatedEvent.Remove(value); }
+        public event Func<EventArgs, Task> Initialized {
+            add { initializedEvent.Add(value); }
+            remove { initializedEvent.Remove(value); }
         }
 
         private readonly AsyncEvent<Func<QueryEventArgs, Task>> queryEvent = new AsyncEvent<Func<QueryEventArgs, Task>>();
         private readonly AsyncEvent<Func<EventArgs, Task>> terminatedEvent = new AsyncEvent<Func<EventArgs, Task>>();
-        private readonly AsyncEvent<Func<EventArgs, Task>> initiatedEvent = new AsyncEvent<Func<EventArgs, Task>>();
+        private readonly AsyncEvent<Func<EventArgs, Task>> initializedEvent = new AsyncEvent<Func<EventArgs, Task>>();
 
         private async Task OnQuery(QueryEventArgs e) {
             await queryEvent.InvokeAsync(e);
@@ -111,8 +132,8 @@ namespace Convex {
             await terminatedEvent.InvokeAsync(e);
         }
 
-        private async Task OnInitiate(EventArgs e) {
-            await initiatedEvent.InvokeAsync(e);
+        private async Task OnInitialized(EventArgs e) {
+            await initializedEvent.InvokeAsync(e);
         }
 
         #endregion
@@ -124,18 +145,17 @@ namespace Convex {
         /// </summary>
         public void Dispose() {
             Dispose(true);
-            GC.SuppressFinalize(this);
         }
 
-        protected virtual void Dispose(bool dispose) {
+        private void Dispose(bool dispose) {
             if (!dispose || disposed)
                 return;
 
             // dispose config after server to ensure
             // serialized values are default
-            logger?.Dispose();
+            Logger?.Dispose();
             Server?.Dispose();
-            config?.Dispose();
+            ClientConfiguration?.Dispose();
 
             disposed = true;
         }
@@ -154,7 +174,7 @@ namespace Convex {
 
         public async Task<bool> Initialise() {
             await MainDatabase.Initialise();
-            logger.Information("Loaded database.");
+            Logger.Information("Loaded database.");
 
             Wrapper.Initialise();
             Wrapper.Terminated += SignalTerminate;
@@ -164,10 +184,10 @@ namespace Convex {
             await Server.Initialise();
             Server.Connection.Flushed += LogDataSent;
             Server.ChannelMessaged += Listen;
-            await Server.SendConnectionInfo(config.Nickname, config.Realname);
+            await Server.SendConnectionInfo(ClientConfiguration.Nickname, ClientConfiguration.Realname);
 
             Initialised = true;
-            await OnInitiate(EventArgs.Empty);
+            await OnInitialized(EventArgs.Empty);
 
             return Initialised && Server.Initialised;
         }
@@ -175,7 +195,7 @@ namespace Convex {
         /// <summary>
         ///     Register all methods
         /// </summary>
-        public virtual void RegisterMethods() {
+        public void RegisterMethods() {
             Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.MOTD_REPLY_END, MotdReplyEnd));
             Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.NICK, Nick));
             Wrapper.Host.RegisterMethod(new MethodRegistrar(Commands.JOIN, Join));
@@ -191,49 +211,55 @@ namespace Convex {
         #region runtime
 
         private async Task Listen(ChannelMessagedEventArgs e) {
-            if (string.IsNullOrEmpty(e.Message.Type))
+            if (string.IsNullOrEmpty(e.Message.Command))
                 return;
 
-            if (e.Message.Type.Equals(Commands.PRIVMSG)) {
-                logger.Information($"<{e.Message.Origin} {e.Message.Nickname}> {e.Message.Args}");
+            if (e.Message.Command.Equals(Commands.PRIVMSG)) {
+                Logger.Information($"<{e.Message.Origin} {e.Message.Nickname}> {e.Message.Args}");
 
                 if (e.Message.Origin.StartsWith("#") &&
                     !Server.ChannelExists(e.Message.Origin))
                     Server.Channels.Add(new Channel(e.Message.Origin));
 
                 if (GetUser(e.Message.Realname)
-                    .GetTimeout())
+                        ?.GetTimeout() ?? false)
                     return;
-            } else if (e.Message.Type.Equals(Commands.ERROR)) {
-                logger.Information(e.Message.RawMessage);
+            } else if (e.Message.Command.Equals(Commands.ERROR)) {
+                Logger.Information(e.Message.RawMessage);
                 Server.Executing = false;
                 return;
             } else {
-                logger.Information(e.Message.RawMessage);
+                Logger.Information(e.Message.RawMessage);
             }
 
-            if (e.Message.Nickname.Equals(config.Nickname) ||
-                config.IgnoreList.Contains(e.Message.Realname))
+            if (e.Message.Nickname.Equals(ClientConfiguration.Nickname) ||
+                ClientConfiguration.IgnoreList.Contains(e.Message.Realname))
                 return;
 
             try {
                 await Wrapper.Host.InvokeAsync(e);
             } catch (Exception ex) {
-                logger.Warning(ex.ToString());
+                Logger.Warning(ex.ToString());
             }
         }
 
         private async Task LogDataSent(StreamFlushedEventArgs e) {
-            logger.Information($" >> {e.Contents}");
+            Logger.Information($" >> {e.Contents}");
         }
 
         #endregion
 
-        #region user updates
+        #region general methods
 
         public List<User> GetAllUsers() => MainDatabase.Users.ToList();
 
-        public User GetUser(string userName) => MainDatabase.Users.SingleOrDefault(user => user.Realname.Equals(userName));
+        /// <summary>
+        ///     Gets the user entry by their realname
+        ///     note: will return null if user does not exist
+        /// </summary>
+        /// <param name="realname">realname of user</param>
+        public User GetUser(string realname) => MainDatabase.Users.SingleOrDefault(user => user.Realname.Equals(realname));
+
         public bool UserExists(string userName) => MainDatabase.Users.Any(user => user.Realname.Equals(userName));
 
         #endregion
@@ -244,10 +270,10 @@ namespace Convex {
             if (Server.Identified)
                 return;
 
-            await Server.Connection.SendDataAsync(Commands.PRIVMSG, $"NICKSERV IDENTIFY {config.Password}");
-            await Server.Connection.SendDataAsync(Commands.MODE, $"{config.Nickname} +B");
+            await Server.Connection.SendDataAsync(Commands.PRIVMSG, $"NICKSERV IDENTIFY {ClientConfiguration.Password}");
+            await Server.Connection.SendDataAsync(Commands.MODE, $"{ClientConfiguration.Nickname} +B");
 
-            foreach (Channel channel in Server.Channels.Where(channel => !channel.Connected)) {
+            foreach (Channel channel in Server.Channels.Where(channel => !channel.Connected && !channel.IsPrivate)) {
                 await Server.Connection.SendDataAsync(Commands.JOIN, channel.Name);
                 channel.Connected = true;
             }
@@ -305,7 +331,7 @@ namespace Convex {
                 return;
 
             if (!e.Message.SplitArgs[0].Replace(",", string.Empty)
-                .Equals(config.Nickname.ToLower()))
+                .Equals(ClientConfiguration.Nickname.ToLower()))
                 return;
 
             if (e.Message.SplitArgs.Count < 2) { // typed only 'eve'

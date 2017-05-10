@@ -5,9 +5,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.Loader;
 using System.Threading.Tasks;
-using Convex.Types;
 using Convex.Types.Events;
+using Convex.Types.Messages;
 using Serilog;
 
 #endregion
@@ -18,7 +19,7 @@ namespace Convex.Resources.Plugin {
         private static readonly string _pluginsDirectory = $"{AppContext.BaseDirectory}\\Plugins";
         private readonly AsyncEvent<Func<ActionEventArgs, Task>> pluginCallbackEvent = new AsyncEvent<Func<ActionEventArgs, Task>>();
 
-        public List<PluginInstance> Plugins = new List<PluginInstance>();
+        private readonly List<PluginInstance> plugins = new List<PluginInstance>();
 
         public bool ShuttingDown { get; private set; }
 
@@ -32,23 +33,23 @@ namespace Convex.Resources.Plugin {
         }
 
         public void StartPlugins() {
-            foreach (PluginInstance pluginInstance in Plugins)
+            foreach (PluginInstance pluginInstance in plugins)
                 pluginInstance.Instance.Start();
         }
 
         public void StopPlugins() {
-            Log.Warning($"STOP PLUGINS RECIEVED — shutting down.");
+            Log.Warning("STOP PLUGINS RECIEVED — shutting down.");
             ShuttingDown = true;
 
-            foreach (PluginInstance pluginInstance in Plugins)
+            foreach (PluginInstance pluginInstance in plugins)
                 pluginInstance.Instance.Stop();
         }
 
         public async Task InvokeAsync(ChannelMessagedEventArgs e) {
-            if (ContainerByType(e.Message.Type) == null)
+            if (ContainerByType(e.Message.Command) == null)
                 return;
 
-            await ContainerByType(e.Message.Type)
+            await ContainerByType(e.Message.Command)
                 .InvokeAsync(e);
         }
 
@@ -78,27 +79,21 @@ namespace Convex.Resources.Plugin {
             if (!Directory.Exists(_pluginsDirectory))
                 Directory.CreateDirectory(_pluginsDirectory);
 
-            // array of all filepaths that are found to match the PLUGIN_MASK
-            string[] pluginMatchAddresses = Directory.GetFiles(_pluginsDirectory, PLUGIN_MASK, SearchOption.AllDirectories);
+            try {
+                // array of all filepaths that are found to match the PLUGIN_MASK
+                IEnumerable<IPlugin> pluginInstances = Directory.GetFiles(_pluginsDirectory, PLUGIN_MASK, SearchOption.AllDirectories)
+                    .SelectMany(GetPluginInstances);
 
-            if (pluginMatchAddresses.Length.Equals(0)) {
-                Log.Information("No plugins to load.");
-                return;
-            }
-
-            foreach (string plugin in pluginMatchAddresses)
-                try {
-                    Assembly.Load(new AssemblyName(plugin));
-
-                    IPlugin instance = GetPluginInstances(plugin);
-                    instance.Callback += OnPluginCallback;
-                    AddPlugin(instance, false);
-                } catch (ReflectionTypeLoadException ex) {
-                    foreach (Exception loaderException in ex.LoaderExceptions)
-                        Log.Error(loaderException, $"LoaderException occured loading plugin: {plugin}");
-                } catch (Exception ex) {
-                    Log.Error(ex, $"Error occured loading plugin: {plugin}");
+                foreach (IPlugin plugin in pluginInstances) {
+                    plugin.Callback += OnPluginCallback;
+                    AddPlugin(plugin, false);
                 }
+            } catch (ReflectionTypeLoadException ex) {
+                foreach (Exception loaderException in ex.LoaderExceptions)
+                    Log.Error(loaderException, "LoaderException occured loading a plugin");
+            } catch (Exception ex) {
+                Log.Error(ex, "Error occured loading a plugin");
+            }
         }
 
         /// <summary>
@@ -106,21 +101,23 @@ namespace Convex.Resources.Plugin {
         /// </summary>
         /// <param name="assemblyName">full name of assembly</param>
         /// <returns></returns>
-        private static IPlugin GetPluginInstances(string assemblyName) {
-            return (IPlugin)Activator.CreateInstance(GetTypeInstance(assemblyName), null, null);
+        private static IEnumerable<IPlugin> GetPluginInstances(string assemblyName) {
+            return GetTypeInstances(GetAssembly(assemblyName))
+                .Select(type => (IPlugin)Activator.CreateInstance(type));
         }
 
         /// <summary>
         ///     Gets the IPlugin type instance from an assembly name
         /// </summary>
-        /// <param name="assemblyName">full name of assembly</param>
+        /// <param name="assembly">assembly instance</param>
         /// <returns></returns>
-        private static Type GetTypeInstance(string assemblyName) {
-            AssemblyInstanceInfo pluginAssembly = new AssemblyInstanceInfo(Assembly.Load(new AssemblyName(assemblyName)));
+        private static IEnumerable<Type> GetTypeInstances(Assembly assembly) {
+            return assembly.GetTypes()
+                .Where(type => typeof(IPlugin).IsAssignableFrom(type));
+        }
 
-            return typeof(IPlugin).GetTypeInfo()
-                .IsAssignableFrom(pluginAssembly.Type.GetTypeInfo())
-                .GetType();
+        private static Assembly GetAssembly(string assemblyName) {
+            return AssemblyLoadContext.Default.LoadFromAssemblyPath(assemblyName);
         }
 
         /// <summary>
@@ -130,7 +127,7 @@ namespace Convex.Resources.Plugin {
         /// <param name="autoStart">start plugin immediately</param>
         public void AddPlugin(IPlugin plugin, bool autoStart) {
             try {
-                Plugins.Add(new PluginInstance(plugin, PluginStatus.Stopped));
+                plugins.Add(new PluginInstance(plugin, PluginStatus.Stopped));
 
                 if (autoStart)
                     plugin.Start();

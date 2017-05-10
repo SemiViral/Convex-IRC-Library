@@ -10,7 +10,7 @@ using Convex.ComponentModel;
 #endregion
 
 namespace Convex.Types {
-    public class User : INotifyPropertyChanged {
+    public sealed class User : INotifyPropertyChanged {
         private int access;
         private int attempts;
         private int id;
@@ -18,15 +18,12 @@ namespace Convex.Types {
         private string realname;
         private DateTime seen;
 
-        public User(int id, string nickname, string realname, int access, DateTime seen) {
-            Access = access;
+        public User(int id, string nickname, string realname, int access) {
+            Id = id;
             Nickname = nickname;
             Realname = realname;
-            Seen = seen;
-            Id = id;
-
-            Messages = new ObservableCollection<Message>();
-            Channels = new List<string>();
+            Access = access;
+            Seen = DateTime.Now;
         }
 
         public int Id {
@@ -77,8 +74,8 @@ namespace Convex.Types {
             }
         }
 
-        public ObservableCollection<Message> Messages { get; }
-        public List<string> Channels { get; }
+        public ObservableCollection<Message> Messages { get; } = new ObservableCollection<Message>();
+        public List<string> Channels { get; } = new List<string>();
 
         public event PropertyChangedEventHandler PropertyChanged;
 
@@ -101,11 +98,11 @@ namespace Convex.Types {
             return doTimeout;
         }
 
-        protected void NotifyPropertyChanged(object newValue, [CallerMemberName] string memberName = "") {
+        private void NotifyPropertyChanged(object newValue, [CallerMemberName] string memberName = "") {
             OnPropertyChanged(this, new SpecialPropertyChangedEventArgs(memberName, Realname, newValue));
         }
 
-        public virtual void OnPropertyChanged(object sender, PropertyChangedEventArgs e) {
+        public void OnPropertyChanged(object sender, PropertyChangedEventArgs e) {
             PropertyChanged?.Invoke(this, e);
         }
 

@@ -4,8 +4,8 @@ using System;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using Convex.Resources.Plugin;
 using Convex.Types.Events;
+using Convex.Types.Messages;
 
 #endregion
 
@@ -13,22 +13,23 @@ namespace Convex.Net {
     public class Connection {
         private TcpClient client;
         private NetworkStream networkStream;
-        protected StreamReader Reader { get; set; }
-        protected StreamWriter Writer { get; set; }
-        public string Address { get; set; }
-        public int Port { get; set; }
 
         public Connection(string address, int port) {
             Address = address;
             Port = port;
         }
 
+        private StreamReader reader;
+        private StreamWriter writer;
+        public string Address { get; set; }
+        public int Port { get; set; }
+
         public async Task SendDataAsync(params string[] args) {
             await WriteAsync(string.Join(" ", args));
         }
 
-        public async Task SendDataAsync(SimpleMessageEventArgs messageEventArgs) {
-            await SendDataAsync(messageEventArgs.Command, messageEventArgs.Target, messageEventArgs.Message);
+        public async Task SendDataAsync(SimpleMessage message) {
+            await SendDataAsync(message.Command, message.Target, message.Args);
         }
 
         #region dispose
@@ -36,8 +37,8 @@ namespace Convex.Net {
         public void Dispose() {
             client?.Dispose();
             networkStream?.Dispose();
-            Reader?.Dispose();
-            Writer?.Dispose();
+            reader?.Dispose();
+            writer?.Dispose();
         }
 
         #endregion
@@ -47,25 +48,25 @@ namespace Convex.Net {
             await client.ConnectAsync(Address, Port);
 
             networkStream = client.GetStream();
-            Reader = new StreamReader(networkStream);
-            Writer = new StreamWriter(networkStream);
+            reader = new StreamReader(networkStream);
+            writer = new StreamWriter(networkStream);
         }
 
         public async Task WriteAsync(string writable) {
-            if (Writer.BaseStream == null)
-                throw new NullReferenceException(nameof(Writer.BaseStream));
+            if (writer.BaseStream == null)
+                throw new NullReferenceException(nameof(writer.BaseStream));
 
-            await Writer.WriteLineAsync(writable);
-            await Writer.FlushAsync();
+            await writer.WriteLineAsync(writable);
+            await writer.FlushAsync();
 
             await OnFlushed(new StreamFlushedEventArgs(writable));
         }
 
         public async Task<string> ReadAsync() {
-            if (Reader.BaseStream == null)
-                throw new NullReferenceException(nameof(Reader.BaseStream));
+            if (reader.BaseStream == null)
+                throw new NullReferenceException(nameof(reader.BaseStream));
 
-            return await Reader.ReadLineAsync();
+            return await reader.ReadLineAsync();
         }
 
         #region events

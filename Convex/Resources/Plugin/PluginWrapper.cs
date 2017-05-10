@@ -3,23 +3,24 @@
 using System;
 using System.Threading.Tasks;
 using Convex.Types.Events;
+using Convex.Types.Messages;
 using Serilog;
 
 #endregion
 
 namespace Convex.Resources.Plugin {
     public class PluginWrapper {
-        private readonly AsyncEvent<Func<SimpleMessageEventArgs, Task>> simpleMessagedEvent = new AsyncEvent<Func<SimpleMessageEventArgs, Task>>();
+        private readonly AsyncEvent<Func<SimpleMessage, Task>> simpleMessagedEvent = new AsyncEvent<Func<SimpleMessage, Task>>();
 
         private readonly AsyncEvent<Func<EventArgs, Task>> terminatedEvent = new AsyncEvent<Func<EventArgs, Task>>();
-        public PluginHost Host;
+        internal PluginHost Host;
 
         public event Func<EventArgs, Task> Terminated {
             add { terminatedEvent.Add(value); }
             remove { terminatedEvent.Remove(value); }
         }
 
-        public event Func<SimpleMessageEventArgs, Task> SimpleMessaged {
+        public event Func<SimpleMessage, Task> SimpleMessaged {
             add { simpleMessagedEvent.Add(value); }
             remove { simpleMessagedEvent.Remove(value); }
         }
@@ -36,10 +37,10 @@ namespace Convex.Resources.Plugin {
                     Host.RegisterMethod((MethodRegistrar)e.Result);
                     break;
                 case PluginActionType.SendMessage:
-                    if (!(e.Result is SimpleMessageEventArgs))
+                    if (!(e.Result is SimpleMessage))
                         break;
 
-                    await simpleMessagedEvent.InvokeAsync((SimpleMessageEventArgs)e.Result);
+                    await simpleMessagedEvent.InvokeAsync((SimpleMessage)e.Result);
                     break;
                 case PluginActionType.Log:
                     if (!(e.Result is string))
@@ -52,6 +53,10 @@ namespace Convex.Resources.Plugin {
             }
         }
 
+        public void RegisterMethod(MethodRegistrar methodRegistrar) {
+            Host.RegisterMethod(methodRegistrar);
+        }
+
         public void Initialise() {
             if (Host != null)
                 return;
@@ -59,6 +64,7 @@ namespace Convex.Resources.Plugin {
             Host = new PluginHost();
             Host.PluginCallback += Callback;
             Host.LoadPlugins();
+            Host.StartPlugins();
         }
     }
 }

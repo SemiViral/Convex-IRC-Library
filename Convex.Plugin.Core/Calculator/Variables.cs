@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 #endregion
 
-namespace Convex.Plugins.Calculator {
+namespace Convex.Plugin.Calculator {
     public partial class InlineCalculator {
         public delegate void CalcVariableDelegate(object sender, EventArgs e);
 

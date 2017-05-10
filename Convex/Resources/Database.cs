@@ -16,8 +16,8 @@ using Serilog;
 #endregion
 
 namespace Convex.Resources {
-    public class Database {
-        public ObservableCollection<User> Users;
+    public sealed class Database {
+        public readonly ObservableCollection<User> Users;
 
         /// <summary>
         ///     Initialise connections to database and sets properties
@@ -60,7 +60,7 @@ namespace Convex.Resources {
             }.ToString());
         }
 
-        internal ICollection<User> LoadUsers() {
+        private ICollection<User> LoadUsers() {
             List<User> users = new List<User>();
 
             using (SqliteConnection connection = GetConnection(FilePath)) {
@@ -80,7 +80,7 @@ namespace Convex.Resources {
                             int access = Convert.ToInt32(userEntries.GetValue(3));
                             DateTime seen = DateTime.Parse((string)userEntries.GetValue(4));
 
-                            users.Add(new User(id, nickname, realname, access, seen));
+                            users.Add(new User(id, nickname, realname, access));
                         }
                     }
 
@@ -112,23 +112,19 @@ namespace Convex.Resources {
             return id;
         }
 
-        private void ReadMessagesIntoUsers()
-        {
+        private void ReadMessagesIntoUsers() {
             if (Users.Count.Equals(0))
                 return;
 
-            using (SqliteConnection connection = GetConnection(FilePath))
-            {
+            using (SqliteConnection connection = GetConnection(FilePath)) {
                 connection.Open();
 
-                using (SqliteTransaction transaction = connection.BeginTransaction())
-                {
+                using (SqliteTransaction transaction = connection.BeginTransaction()) {
                     SqliteCommand getMessages = connection.CreateCommand();
                     getMessages.Transaction = transaction;
                     getMessages.CommandText = "SELECT * FROM messages";
 
-                    using (SqliteDataReader messages = getMessages.ExecuteReader())
-                    {
+                    using (SqliteDataReader messages = getMessages.ExecuteReader()) {
                         while (messages.Read())
                             Users.SingleOrDefault(e => e.Id.Equals(Convert.ToInt32(messages["id"])))
                                 ?.Messages.Add(new Message((int)messages["id"], (string)messages["sender"], (string)messages["message"], DateTime.Parse((string)messages["datetime"])));
@@ -181,7 +177,7 @@ namespace Convex.Resources {
 
         #region user automation
 
-        protected virtual void UserAdded(object source, NotifyCollectionChangedEventArgs e) {
+        private void UserAdded(object source, NotifyCollectionChangedEventArgs e) {
             if (!e.Action.Equals(NotifyCollectionChangedAction.Add))
                 return;
 
@@ -199,7 +195,7 @@ namespace Convex.Resources {
             }
         }
 
-        protected virtual void MessageAdded(object source, NotifyCollectionChangedEventArgs e) {
+        private void MessageAdded(object source, NotifyCollectionChangedEventArgs e) {
             if (!e.Action.Equals(NotifyCollectionChangedAction.Add))
                 return;
 

@@ -3,13 +3,12 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
-using Convex.Types;
 using Newtonsoft.Json;
 
 #endregion
 
 namespace Convex.Resources {
-    public partial class Config : IDisposable {
+    public partial class ClientConfiguration : IDisposable {
         private string databaseFilePath;
         private bool disposed;
         private string logFilePath;
@@ -19,7 +18,6 @@ namespace Convex.Resources {
 
         public string FilePath { get; set; }
 
-        public Server Server { get; set; }
         public string Realname { get; set; }
         public string Nickname { get; set; }
         public string Password { get; set; }
@@ -69,7 +67,7 @@ namespace Convex.Resources {
                 return;
 
             WriteConfig(JsonConvert.SerializeObject(this), string.IsNullOrEmpty(FilePath)
-                ? DefaultConfigFilePath
+                ? DefaultFilePath
                 : FilePath);
 
             disposed = true;

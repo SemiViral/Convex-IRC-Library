@@ -8,7 +8,7 @@ using System.Text;
 
 #endregion
 
-namespace Convex.Plugins.Calculator {
+namespace Convex.Plugin.Calculator {
     public partial class InlineCalculator {
         private string expression;
         
