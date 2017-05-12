@@ -205,8 +205,7 @@ namespace Convex.Plugin.Calculator {
             throw new CalculateException(message, tokenPos);
         }
     }
-
-    [Serializable]
+    
     public class CalculateException : Exception {
         public CalculateException(string message, int position) : base($"Error at position: {position}, {message}") {
             TokenPosition = position;

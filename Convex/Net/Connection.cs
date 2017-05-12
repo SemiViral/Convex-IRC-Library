@@ -4,31 +4,31 @@ using System;
 using System.IO;
 using System.Net.Sockets;
 using System.Threading.Tasks;
-using Convex.Types.Events;
-using Convex.Types.Messages;
+using Convex.Event;
 
 #endregion
 
 namespace Convex.Net {
-    public class Connection {
+    public sealed class Connection {
         private TcpClient client;
         private NetworkStream networkStream;
+
+        private StreamReader reader;
+        private StreamWriter writer;
 
         public Connection(string address, int port) {
             Address = address;
             Port = port;
         }
 
-        private StreamReader reader;
-        private StreamWriter writer;
-        public string Address { get; set; }
-        public int Port { get; set; }
+        public string Address { get; }
+        public int Port { get; }
 
         public async Task SendDataAsync(params string[] args) {
             await WriteAsync(string.Join(" ", args));
         }
 
-        public async Task SendDataAsync(SimpleMessage message) {
+        public async Task SendDataAsync(object source, CommandEventArgs message) {
             await SendDataAsync(message.Command, message.Target, message.Args);
         }
 
@@ -59,7 +59,7 @@ namespace Convex.Net {
             await writer.WriteLineAsync(writable);
             await writer.FlushAsync();
 
-            await OnFlushed(new StreamFlushedEventArgs(writable));
+            await OnFlushed(this, new StreamFlushedEventArgs(writable));
         }
 
         public async Task<string> ReadAsync() {
@@ -71,21 +71,18 @@ namespace Convex.Net {
 
         #region events
 
-        public event Func<StreamFlushedEventArgs, Task> Flushed {
-            add { flushedEvent.Add(value); }
-            remove { flushedEvent.Remove(value); }
-        }
+        public event AsyncEventHandler<StreamFlushedEventArgs> Flushed;
 
-        private readonly AsyncEvent<Func<StreamFlushedEventArgs, Task>> flushedEvent = new AsyncEvent<Func<StreamFlushedEventArgs, Task>>();
+        private async Task OnFlushed(object source, StreamFlushedEventArgs e) {
+            if (Flushed == null)
+                return;
 
-        protected virtual async Task OnFlushed(StreamFlushedEventArgs e) {
-            await flushedEvent.InvokeAsync(e);
+            await Flushed.Invoke(source, e);
         }
 
         #endregion
     }
 
-    [Serializable]
     public class StreamFlushedEventArgs : EventArgs {
         public StreamFlushedEventArgs(string contents) {
             Timestamp = DateTime.Now;

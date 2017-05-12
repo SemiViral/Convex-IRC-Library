@@ -9,13 +9,13 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Convex.ComponentModel;
-using Convex.Types;
+using Convex.Event;
 using Microsoft.Data.Sqlite;
 using Serilog;
 
 #endregion
 
-namespace Convex.Resources {
+namespace Convex.Resource {
     public sealed class Database {
         public readonly ObservableCollection<User> Users;
 
@@ -40,7 +40,7 @@ namespace Convex.Resources {
                 Users.Add(user);
         }
 
-        public async Task CheckCreate() {
+        private async Task CheckCreate() {
             if (File.Exists(FilePath))
                 return;
 
@@ -60,7 +60,7 @@ namespace Convex.Resources {
             }.ToString());
         }
 
-        private ICollection<User> LoadUsers() {
+        private IEnumerable<User> LoadUsers() {
             List<User> users = new List<User>();
 
             using (SqliteConnection connection = GetConnection(FilePath)) {
@@ -221,13 +221,5 @@ namespace Convex.Resources {
         }
 
         #endregion
-    }
-
-    public class QueryEventArgs : EventArgs {
-        public QueryEventArgs(string args) {
-            Query = args;
-        }
-
-        public string Query { get; }
     }
 }

@@ -6,12 +6,12 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
-using Convex.Resources;
+using Convex.Event;
 using Microsoft.Data.Sqlite;
 
 #endregion
 
-namespace Convex {
+namespace Convex.Resource {
     public static class Extensions {
         /// <summary>
         ///     Obtain HTTP response from a GET request
@@ -90,5 +90,7 @@ namespace Convex {
                 transaction.Commit();
             }
         }
+
+        public static bool InputEquals(this ServerMessagedEventArgs e, string compareTo) => e.Message.InputCommand.Equals(compareTo);
     }
 }

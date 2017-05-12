@@ -9,7 +9,7 @@ using Convex.ComponentModel;
 
 #endregion
 
-namespace Convex.Types {
+namespace Convex.Resource {
     public sealed class User : INotifyPropertyChanged {
         private int access;
         private int attempts;
@@ -103,7 +103,7 @@ namespace Convex.Types {
         }
 
         public void OnPropertyChanged(object sender, PropertyChangedEventArgs e) {
-            PropertyChanged?.Invoke(this, e);
+            PropertyChanged?.Invoke(sender, e);
         }
 
         /// <summary>

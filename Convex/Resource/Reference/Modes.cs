@@ -1,4 +1,4 @@
-﻿namespace Convex.Types.References {
+﻿namespace Convex.Resource.Reference {
     public static class Modes {
         // Several modes mean different things on
         // seperate servers, so this may require some

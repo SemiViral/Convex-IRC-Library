@@ -3,10 +3,10 @@
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
-using Convex.Resources.Plugin;
-using Convex.Types;
-using Convex.Types.Messages;
-using Convex.Types.References;
+using Convex.Event;
+using Convex.Plugin;
+using Convex.Resource;
+using Convex.Resource.Reference;
 
 #endregion
 
@@ -18,7 +18,7 @@ namespace Convex.Example {
         ///     Initialises class
         /// </summary>
         public IrcBot() {
-            bot = new Client("irc.foonetic.net", 6667, true);
+            bot = new Client("irc.foonetic.net", 6667);
             bot.Server.Channels.Add(new Channel("#testgrounds"));
         }
 
@@ -41,10 +41,10 @@ namespace Convex.Example {
         ///     Register all methods
         /// </summary>
         private void RegisterMethods() {
-            bot.Wrapper.RegisterMethod(new MethodRegistrar(Commands.PRIVMSG, Info, new KeyValuePair<string, string>("info", "returns the basic information about this bot")));
+            bot.RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, Info, e => e.Message.InputCommand.Equals("info"), new KeyValuePair<string, string>("info", "returns the basic information about this bot")));
         }
 
-        private async Task Info(ChannelMessagedEventArgs e) {
+        private async Task Info(ServerMessagedEventArgs e) {
             if (e.Message.SplitArgs.Count < 2 ||
                 !e.Message.SplitArgs[1].Equals("info"))
                 return;

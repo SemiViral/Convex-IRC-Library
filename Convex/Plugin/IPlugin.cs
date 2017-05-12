@@ -2,11 +2,11 @@
 
 using System;
 using System.Threading.Tasks;
-using Convex.Types.Events;
+using Convex.Event;
 
 #endregion
 
-namespace Convex.Resources.Plugin {
+namespace Convex.Plugin {
     /// <summary>
     ///     Interface for hooking a new plugin into Eve
     /// </summary>
@@ -16,13 +16,16 @@ namespace Convex.Resources.Plugin {
         Version Version { get; }
         string Id { get; }
         PluginStatus Status { get; }
-        AsyncEvent<Func<ActionEventArgs, Task>> CallbackEvent { get; set; }
 
+        /// <summary>
+        ///     Often used to register methods
+        /// </summary>
         Task Start();
+
         Task Stop();
         Task Call_Die();
 
-        event Func<ActionEventArgs, Task> Callback;
+        event AsyncEventHandler<ActionEventArgs> Callback;
     }
 
     public class PluginInstance {
@@ -32,21 +35,6 @@ namespace Convex.Resources.Plugin {
         public PluginInstance(IPlugin instance, PluginStatus status) {
             Instance = instance;
             Status = status;
-        }
-    }
-
-    [Serializable]
-    public class ActionEventArgs : EventArgs {
-        public readonly PluginActionType ActionType;
-        //public string ExecutingDomain;
-        //public string PluginName;
-        public readonly object Result;
-
-        public ActionEventArgs(PluginActionType actionType, object result = null) {
-            Result = result;
-            ActionType = actionType;
-            //ExecutingDomain = AppDomain.CurrentDomain.FriendlyName;
-            //PluginName = Assembly.GetExecutingAssembly().GetName().Name;
         }
     }
 

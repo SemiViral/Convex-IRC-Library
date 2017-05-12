@@ -7,17 +7,15 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
-using Convex.Types.Events;
-using Convex.Types.Messages;
+using Convex.Event;
 using Serilog;
 
 #endregion
 
-namespace Convex.Resources.Plugin {
-    public class PluginHost {
+namespace Convex.Plugin {
+    internal class PluginHost {
         private const string PLUGIN_MASK = "Convex.*.dll";
         private static readonly string _pluginsDirectory = $"{AppContext.BaseDirectory}\\Plugins";
-        private readonly AsyncEvent<Func<ActionEventArgs, Task>> pluginCallbackEvent = new AsyncEvent<Func<ActionEventArgs, Task>>();
 
         private readonly List<PluginInstance> plugins = new List<PluginInstance>();
 
@@ -25,12 +23,8 @@ namespace Convex.Resources.Plugin {
 
         public Dictionary<string, string> Commands { get; } = new Dictionary<string, string>();
 
-        private List<MethodsContainer> MethodContainers { get; } = new List<MethodsContainer>();
-
-        public event Func<ActionEventArgs, Task> PluginCallback {
-            add { pluginCallbackEvent.Add(value); }
-            remove { pluginCallbackEvent.Add(value); }
-        }
+        private List<MethodsContainer<ServerMessagedEventArgs>> MethodContainers { get; } = new List<MethodsContainer<ServerMessagedEventArgs>>();
+        public event AsyncEventHandler<ActionEventArgs> PluginCallback;
 
         public void StartPlugins() {
             foreach (PluginInstance pluginInstance in plugins)
@@ -45,17 +39,17 @@ namespace Convex.Resources.Plugin {
                 pluginInstance.Instance.Stop();
         }
 
-        public async Task InvokeAsync(ChannelMessagedEventArgs e) {
+        public async Task InvokeAsync(ServerMessagedEventArgs e) {
             if (ContainerByType(e.Message.Command) == null)
                 return;
 
             await ContainerByType(e.Message.Command)
-                .InvokeAsync(e);
+                .InvokeAllAsync(this, e);
         }
 
-        public void RegisterMethod(MethodRegistrar methodRegistrar) {
+        public void RegisterMethod(MethodRegistrar<ServerMessagedEventArgs> methodRegistrar) {
             if (ContainerByType(methodRegistrar.CommandType) == null)
-                MethodContainers.Add(new MethodsContainer(methodRegistrar.CommandType));
+                MethodContainers.Add(new MethodsContainer<ServerMessagedEventArgs>(methodRegistrar.CommandType));
 
             // check whether commands exist and add to list
             if (!methodRegistrar.Definition.Equals(default(KeyValuePair<string, string>)))
@@ -65,10 +59,10 @@ namespace Convex.Resources.Plugin {
                     Commands.Add(methodRegistrar.Definition.Key, methodRegistrar.Definition.Value);
 
             ContainerByType(methodRegistrar.CommandType)
-                .ChannelMessaged += methodRegistrar.Method;
+                .SubmitRegistrar(methodRegistrar);
         }
 
-        private MethodsContainer ContainerByType(string type) {
+        private MethodsContainer<ServerMessagedEventArgs> ContainerByType(string type) {
             return MethodContainers.SingleOrDefault(container => container.Command.Equals(type));
         }
 
@@ -113,7 +107,9 @@ namespace Convex.Resources.Plugin {
         /// <returns></returns>
         private static IEnumerable<Type> GetTypeInstances(Assembly assembly) {
             return assembly.GetTypes()
-                .Where(type => typeof(IPlugin).IsAssignableFrom(type));
+                .Where(type => type.GetTypeInfo()
+                    .GetInterfaces()
+                    .Contains(typeof(IPlugin)));
         }
 
         private static Assembly GetAssembly(string assemblyName) {
@@ -136,28 +132,11 @@ namespace Convex.Resources.Plugin {
             }
         }
 
-        private async Task OnPluginCallback(ActionEventArgs e) {
-            await pluginCallbackEvent.InvokeAsync(e);
-        }
-    }
+        private async Task OnPluginCallback(object source, ActionEventArgs e) {
+            if (PluginCallback == null)
+                return;
 
-    internal class MethodsContainer {
-        private readonly AsyncEvent<Func<ChannelMessagedEventArgs, Task>> channelMessageEvent;
-
-        public MethodsContainer(string command) {
-            Command = command;
-            channelMessageEvent = new AsyncEvent<Func<ChannelMessagedEventArgs, Task>>();
-        }
-
-        public string Command { get; }
-
-        public event Func<ChannelMessagedEventArgs, Task> ChannelMessaged {
-            add { channelMessageEvent.Add(value); }
-            remove { channelMessageEvent.Remove(value); }
-        }
-
-        public async Task InvokeAsync(ChannelMessagedEventArgs e) {
-            await channelMessageEvent.InvokeAsync(e);
+            await PluginCallback.Invoke(source, e);
         }
     }
 }

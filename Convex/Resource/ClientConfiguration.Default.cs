@@ -4,7 +4,7 @@ using System;
 
 #endregion
 
-namespace Convex.Resources {
+namespace Convex.Resource {
     public partial class ClientConfiguration {
         // I know this isn't readable. Just run the program once and you'll get a much cleaner
         // representation of the default config in the generated config.json

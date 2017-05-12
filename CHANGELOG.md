@@ -83,3 +83,14 @@
 #### Bug Fixes
 
  - Plugins are now properly loaded into the assembly.
+
+## 1.3.7 — Simplified async!
+
+#### General 
+ - The namespace structure has been changed to more accurate reflect the naming conventions set by MSDN.
+
+ - Events now use `AsyncEventHandler`, offering vastly simplified implementation.
+
+ - `SimpleMessage` renamed to `CommandEventArgs`
+
+ - `ChannelMessagedEventArgs` renamed to `ServerMessagedEventArgs`

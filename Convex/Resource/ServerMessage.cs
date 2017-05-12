@@ -4,21 +4,20 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Convex.Types.References;
+using Convex.Resource.Reference;
 
 #endregion
 
-namespace Convex.Types.Messages {
-    [Serializable]
-    public class ChannelMessage : Message {
+namespace Convex.Resource {
+    public class ServerMessage {
         // Regex for parsing RawMessage messages
         private static readonly Regex _messageRegex = new Regex(@"^:(?<Sender>[^\s]+)\s(?<Type>[^\s]+)\s(?<Recipient>[^\s]+)\s?:?(?<Args>.*)", RegexOptions.Compiled);
 
         private static readonly Regex _senderRegex = new Regex(@"^(?<Nickname>[^\s]+)!(?<Realname>[^\s]+)@(?<Hostname>[^\s]+)", RegexOptions.Compiled);
 
-        public Dictionary<string, string> Tags = new Dictionary<string, string>();
+        public readonly Dictionary<string, string> Tags = new Dictionary<string, string>();
 
-        public ChannelMessage(string rawData) {
+        public ServerMessage(string rawData) {
             RawMessage = rawData.Trim();
 
             if (rawData.StartsWith("ERROR")) {
@@ -37,7 +36,13 @@ namespace Convex.Types.Messages {
         public string Realname { get; private set; }
         public string Hostname { get; private set; }
         public string Origin { get; private set; }
+        public string Command { get; private set; }
+        public string Args { get; private set; }
         public List<string> SplitArgs { get; private set; }
+
+        public DateTime Timestamp { get; private set; }
+
+        public string InputCommand { get; set; } = string.Empty;
 
         /// <summary>
         ///     For parsing IRCv3 message tags
@@ -93,16 +98,5 @@ namespace Convex.Types.Messages {
                 : realname;
             Hostname = sMatch.Groups["Hostname"].Value;
         }
-    }
-
-    [Serializable]
-    public class ChannelMessagedEventArgs : EventArgs {
-        public ChannelMessagedEventArgs(Client bot, ChannelMessage message) {
-            Caller = bot;
-            Message = message;
-        }
-
-        public Client Caller { get; }
-        public ChannelMessage Message { get; }
     }
 }

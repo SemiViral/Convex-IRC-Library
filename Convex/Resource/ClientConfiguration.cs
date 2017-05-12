@@ -7,7 +7,7 @@ using Newtonsoft.Json;
 
 #endregion
 
-namespace Convex.Resources {
+namespace Convex.Resource {
     public partial class ClientConfiguration : IDisposable {
         private string databaseFilePath;
         private bool disposed;

@@ -4,15 +4,14 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Convex.Event;
 using Convex.Net;
-using Convex.Types.Events;
-using Convex.Types.Messages;
-using Convex.Types.References;
+using Convex.Resource.Reference;
 using Serilog;
 
 #endregion
 
-namespace Convex.Types {
+namespace Convex.Resource {
     public class Server : IDisposable {
         public Connection Connection;
 
@@ -58,7 +57,7 @@ namespace Convex.Types {
                 await CheckPing(rawData))
                 return;
 
-            await OnChannelMessaged(new ChannelMessagedEventArgs(caller, new ChannelMessage(rawData)));
+            await OnChannelMessaged(this, new ServerMessagedEventArgs(caller, new ServerMessage(rawData)));
         }
 
         /// <summary>
@@ -97,15 +96,13 @@ namespace Convex.Types {
 
         #region events
 
-        private readonly AsyncEvent<Func<ChannelMessagedEventArgs, Task>> _channelMessaged = new AsyncEvent<Func<ChannelMessagedEventArgs, Task>>();
+        public event AsyncEventHandler<ServerMessagedEventArgs> ChannelMessaged;
 
-        public event Func<ChannelMessagedEventArgs, Task> ChannelMessaged {
-            add { _channelMessaged.Add(value); }
-            remove { _channelMessaged.Remove(value); }
-        }
+        private async Task OnChannelMessaged(object source, ServerMessagedEventArgs e) {
+            if (ChannelMessaged == null)
+                return;
 
-        private async Task OnChannelMessaged(ChannelMessagedEventArgs e) {
-            await _channelMessaged.InvokeAsync(e);
+            await ChannelMessaged.Invoke(source, e);
         }
 
         #endregion

@@ -1,4 +1,4 @@
-﻿namespace Convex.Types.References {
+﻿namespace Convex.Resource.Reference {
     public class Commands {
         public const string DEFAULT = "";
         public const string ABORT = "ABORT";
