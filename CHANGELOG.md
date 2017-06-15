@@ -114,11 +114,11 @@
  - Downgraded to .NETStandard 1.5 for compatability with current .NETFramework versions
 
  - **CHANGELOG.md**
-  - Updated format to be more readable
+   - Updated format to be more readable
 
  - **Client.cs**
-  - New constructor: `public Client(string address, int port, string friendlyname = "")`
-  - Added `FriendlyName` property
-
+   - New constructor: `public Client(string address, int port, string friendlyname = "")`
+   - Added `FriendlyName` property
+ 
  - **Server.cs**
-  - New constructor: `public Server(Connection connection)`
+   - New constructor: `public Server(Connection connection)`
