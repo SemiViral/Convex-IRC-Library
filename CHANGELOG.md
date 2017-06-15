@@ -13,7 +13,7 @@
  - Stream objects now have a custom base class, `Stream` in `Convex.Resources`.
    - a note: logging to file doesn't work currently, will fix in a later patch
 
-### 1.3.2 — .NET Standard 1.6
+### 1.3.2 â€” .NET Standard 1.6
 
 #### General
 
@@ -84,7 +84,7 @@
 
  - Plugins are now properly loaded into the assembly.
 
-### 1.3.7 — Simplified async!
+### 1.3.7 â€” Simplified async!
 
 #### General 
 
@@ -113,12 +113,12 @@
 
  - Downgraded to .NETStandard 1.5 for compatability with current .NETFramework versions
 
- - *CHANGELOG.md*
+ - **CHANGELOG.md**
   - Updated format to be more readable
 
- - *Client.cs*
+ - **Client.cs**
   - New constructor: `public Client(string address, int port, string friendlyname = "")`
   - Added `FriendlyName` property
 
- - *Server.cs*
+ - **Server.cs**
   - New constructor: `public Server(Connection connection)`
