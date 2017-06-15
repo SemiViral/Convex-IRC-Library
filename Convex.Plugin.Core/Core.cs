@@ -35,6 +35,8 @@ namespace Convex.Plugin {
         public event AsyncEventHandler<ActionEventArgs> Callback;
 
         public async Task Start() {
+            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.MOTD_REPLY_END, MotdReplyEnd)));
+
             await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, Default)));
 
             await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, YouTubeLinkResponse, e => youtubeRegex.IsMatch(e.Message.Args))));
@@ -84,6 +86,21 @@ namespace Convex.Plugin {
             e.PluginName = Name;
 
             await Callback.Invoke(source, e);
+        }
+
+        private static async Task MotdReplyEnd(ServerMessagedEventArgs e) {
+            if (e.Caller.Server.Identified)
+                return;
+
+            await e.Caller.Server.Connection.SendDataAsync(Commands.PRIVMSG, $"NICKSERV IDENTIFY {e.Caller.ClientConfiguration.Password}");
+            await e.Caller.Server.Connection.SendDataAsync(Commands.MODE, $"{e.Caller.ClientConfiguration.Nickname} +B");
+
+            foreach (Channel channel in e.Caller.Server.Channels.Where(channel => !channel.Connected && !channel.IsPrivate)) {
+                await e.Caller.Server.Connection.SendDataAsync(Commands.JOIN, channel.Name);
+                channel.Connected = true;
+            }
+
+            e.Caller.Server.Identified = true;
         }
 
         private static async Task Default(ServerMessagedEventArgs e) {
@@ -143,21 +160,21 @@ namespace Convex.Plugin {
             CommandEventArgs message = new CommandEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
             if (e.Message.SplitArgs.Count < 3)
-                message.Args = "Not enough parameters.";
+                message.Contents = "Not enough parameters.";
 
             Status = PluginStatus.Running;
 
-            if (string.IsNullOrEmpty(message.Args)) {
+            if (string.IsNullOrEmpty(message.Contents)) {
                 Status = PluginStatus.Running;
                 string evalArgs = e.Message.SplitArgs.Count > 3
                     ? e.Message.SplitArgs[2] + e.Message.SplitArgs[3]
                     : e.Message.SplitArgs[2];
 
                 try {
-                    message.Args = calculator.Evaluate(evalArgs)
+                    message.Contents = calculator.Evaluate(evalArgs)
                         .ToString(CultureInfo.CurrentCulture);
                 } catch (Exception ex) {
-                    message.Args = ex.Message;
+                    message.Contents = ex.Message;
                 }
             }
 
@@ -179,14 +196,14 @@ namespace Convex.Plugin {
             else if (e.Message.SplitArgs.Count < 2 ||
                      !e.Message.SplitArgs[2].StartsWith("#"))
                 message = "Channel name must start with '#'.";
-            else if (e.Caller.Server.ChannelExists(e.Message.SplitArgs[2].ToLower()))
+            else if (e.Caller.Server.GetChannel(e.Message.SplitArgs[2].ToLower()) != null)
                 message = "I'm already in that channel.";
 
             Status = PluginStatus.Running;
 
             if (string.IsNullOrEmpty(message)) {
                 await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, new CommandEventArgs(Commands.JOIN, string.Empty, e.Message.SplitArgs[2])));
-                e.Caller.Server.AddChannel(e.Message.SplitArgs[2].ToLower());
+                e.Caller.Server.Channels.Add(new Channel(e.Message.SplitArgs[2].ToLower()));
 
                 message = $"Successfully joined channel: {e.Message.SplitArgs[2]}.";
             }
@@ -203,19 +220,19 @@ namespace Convex.Plugin {
 
             if (e.Caller.GetUser(e.Message.Realname)
                     ?.Access > 1)
-                message.Args = "Insufficient permissions.";
+                message.Contents = "Insufficient permissions.";
             else if (e.Message.SplitArgs.Count < 3)
-                message.Args = "Insufficient parameters. Type 'eve help part' to view command's help index.";
+                message.Contents = "Insufficient parameters. Type 'eve help part' to view command's help index.";
             else if (e.Message.SplitArgs.Count < 2 ||
                      !e.Message.SplitArgs[2].StartsWith("#"))
-                message.Args = "Channel parameter must be a proper name (starts with '#').";
+                message.Contents = "Channel parameter must be a proper name (starts with '#').";
             else if (e.Message.SplitArgs.Count < 2 ||
-                     !e.Caller.Server.ChannelExists(e.Message.SplitArgs[2]))
-                message.Args = "I'm not in that channel.";
+                     e.Caller.Server.GetChannel(e.Message.SplitArgs[2]) != null)
+                message.Contents = "I'm not in that channel.";
 
             Status = PluginStatus.Running;
 
-            if (!string.IsNullOrEmpty(message.Args)) {
+            if (!string.IsNullOrEmpty(message.Contents)) {
                 await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, message));
                 return;
             }
@@ -224,7 +241,7 @@ namespace Convex.Plugin {
 
             e.Caller.Server.RemoveChannel(channel);
 
-            message.Args = $"Successfully parted channel: {channel}";
+            message.Contents = $"Successfully parted channel: {channel}";
 
             await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, message));
             await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, new CommandEventArgs(Commands.PART, string.Empty, $"{channel} Channel part invoked by: {e.Message.Nickname}")));
@@ -276,7 +293,7 @@ namespace Convex.Plugin {
             CommandEventArgs message = new CommandEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
             if (e.Message.SplitArgs.Count < 3) {
-                message.Args = "Insufficient parameters. Type 'eve help define' to view correct usage.";
+                message.Contents = "Insufficient parameters. Type 'eve help define' to view correct usage.";
                 await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, message));
                 return;
             }
@@ -290,7 +307,7 @@ namespace Convex.Plugin {
             JObject entry = JObject.Parse(await $"http://api.pearson.com/v2/dictionaries/laad3/entries?headword={e.Message.SplitArgs[2]}{partOfSpeech}&limit=1".HttpGet());
 
             if ((int)entry.SelectToken("count") < 1) {
-                message.Args = "Query returned no results.";
+                message.Contents = "Query returned no results.";
                 await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, message));
                 return;
             }
@@ -319,7 +336,7 @@ namespace Convex.Plugin {
             if (_out.ContainsKey("example"))
                 returnMessage += $" (ex. {_out["example"]})";
 
-            message.Args = returnMessage;
+            message.Contents = returnMessage;
             await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, message));
 
             Status = PluginStatus.Stopped;
@@ -335,7 +352,7 @@ namespace Convex.Plugin {
             CommandEventArgs message = new CommandEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
             if (e.Message.SplitArgs.Count < 3) {
-                message.Args = "Insufficient parameters. Type 'eve help lookup' to view correct usage.";
+                message.Contents = "Insufficient parameters. Type 'eve help lookup' to view correct usage.";
                 await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, message));
                 return;
             }
@@ -349,7 +366,7 @@ namespace Convex.Plugin {
                 .First();
 
             if (string.IsNullOrEmpty((string)pages["extract"])) {
-                message.Args = "Query failed to return results. Perhaps try a different term?";
+                message.Contents = "Query failed to return results. Perhaps try a different term?";
                 await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, message));
                 return;
             }
@@ -359,7 +376,7 @@ namespace Convex.Plugin {
             message.Target = e.Message.Nickname;
 
             foreach (string splitMessage in fullReplyStr.SplitByLength(400)) {
-                message.Args = splitMessage;
+                message.Contents = splitMessage;
                 await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, message));
             }
 
@@ -384,14 +401,14 @@ namespace Convex.Plugin {
             CommandEventArgs message = new CommandEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Empty);
 
             if (e.Message.SplitArgs.Count < 5) {
-                message.Args = "Insufficient parameters. Type 'eve help lookup' to view correct usage.";
+                message.Contents = "Insufficient parameters. Type 'eve help lookup' to view correct usage.";
                 await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, message));
                 return;
             }
 
             if (e.Caller.GetUser(e.Message.Nickname)
                     ?.Access > 0)
-                message.Args = "Insufficient permissions.";
+                message.Contents = "Insufficient permissions.";
 
             //e.Root.GetUser()
 

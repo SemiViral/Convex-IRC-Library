@@ -4,7 +4,6 @@ using System.Linq;
 using System.Threading.Tasks;
 using Convex.Event;
 using Convex.Resource;
-using Convex.Resource.Reference;
 
 #endregion
 
@@ -12,23 +11,8 @@ namespace Convex {
     public sealed partial class Client {
         #region register methods
 
-        private async Task MotdReplyEnd(ServerMessagedEventArgs e) {
-            if (Server.Identified)
-                return;
-
-            await Server.Connection.SendDataAsync(Commands.PRIVMSG, $"NICKSERV IDENTIFY {ClientConfiguration.Password}");
-            await Server.Connection.SendDataAsync(Commands.MODE, $"{ClientConfiguration.Nickname} +B");
-
-            foreach (Channel channel in Server.Channels.Where(channel => !channel.Connected && !channel.IsPrivate)) {
-                await Server.Connection.SendDataAsync(Commands.JOIN, channel.Name);
-                channel.Connected = true;
-            }
-
-            Server.Identified = true;
-        }
-
         private async Task Nick(ServerMessagedEventArgs e) {
-            await OnQuery(this, new QueryEventArgs($"UPDATE users SET nickname='{e.Message.Origin}' WHERE realname='{e.Message.Realname}'"));
+            await OnQuery(this, new BasicEventArgs($"UPDATE users SET nickname='{e.Message.Origin}' WHERE realname='{e.Message.Realname}'"));
         }
 
         private Task Join(ServerMessagedEventArgs e) {

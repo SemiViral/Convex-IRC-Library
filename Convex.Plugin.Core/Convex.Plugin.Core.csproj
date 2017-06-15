@@ -15,4 +15,10 @@
     <ProjectReference Include="..\Convex\Convex.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Reference Include="NeuralNetwork">
+      <HintPath>..\..\NeuralNetwork\NeuralNetTest\bin\Debug\netstandard1.4\NeuralNetwork.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+
 </Project>

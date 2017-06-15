@@ -99,7 +99,7 @@ namespace Convex.Resource {
         }
 
         private void NotifyPropertyChanged(object newValue, [CallerMemberName] string memberName = "") {
-            OnPropertyChanged(this, new SpecialPropertyChangedEventArgs(memberName, Realname, newValue));
+            OnPropertyChanged(this, new UserPropertyChangedEventArgs(memberName, Realname, newValue));
         }
 
         public void OnPropertyChanged(object sender, PropertyChangedEventArgs e) {

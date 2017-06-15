@@ -12,16 +12,16 @@ namespace Convex.Resource {
             Topic = string.Empty;
             Inhabitants = new List<string>();
             Modes = new List<IrcMode>();
-            if (!Name.StartsWith("#"))
-                IsPrivate = true;
+            Messages = new List<ServerMessage>();
+            IsPrivate = !Name.StartsWith("#");
         }
 
         public string Name { get; }
         public string Topic { get; set; }
         public List<string> Inhabitants { get; }
         public List<IrcMode> Modes { get; }
+        public List<ServerMessage> Messages { get; set; }
         public bool IsPrivate { get; }
-
         public bool Connected { get; set; }
     }
 }

@@ -36,6 +36,7 @@ namespace Convex.Resource {
         /// <summary>
         ///     Splits a string into seperate parts
         /// </summary>
+        /// <param name="instance"></param>
         /// <param name="maxLength">max length of individual strings to split</param>
         public static IEnumerable<string> SplitByLength(this string instance, int maxLength) {
             for (int i = 0; i < instance.Length; i += maxLength)
@@ -63,13 +64,13 @@ namespace Convex.Resource {
             return deliminatedSpaces.ToString();
         }
 
-        public static async Task QueryAsync(this SqliteConnection source, QueryEventArgs e) {
+        public static async Task QueryAsync(this SqliteConnection source, BasicEventArgs e) {
             await source.OpenAsync();
 
             using (SqliteTransaction transaction = source.BeginTransaction()) {
                 using (SqliteCommand command = source.CreateCommand()) {
                     command.Transaction = transaction;
-                    command.CommandText = e.Query;
+                    command.CommandText = e.Contents;
                     await command.ExecuteNonQueryAsync();
                 }
 
@@ -77,13 +78,13 @@ namespace Convex.Resource {
             }
         }
 
-        public static void Query(this SqliteConnection source, QueryEventArgs e) {
+        public static void Query(this SqliteConnection source, BasicEventArgs e) {
             source.Open();
 
             using (SqliteTransaction transaction = source.BeginTransaction()) {
                 using (SqliteCommand command = source.CreateCommand()) {
                     command.Transaction = transaction;
-                    command.CommandText = e.Query;
+                    command.CommandText = e.Contents;
                     command.ExecuteNonQuery();
                 }
 

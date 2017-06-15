@@ -3,18 +3,21 @@
 using System;
 using System.Threading.Tasks;
 using Convex.Event;
-using Serilog;
 
 #endregion
 
 namespace Convex.Plugin {
     internal class PluginWrapper {
         internal PluginHost Host;
-        public event AsyncEventHandler<CommandEventArgs> CommandRecieved;
 
+        internal event AsyncEventHandler<CommandEventArgs> CommandRecieved;
+        internal event AsyncEventHandler<BasicEventArgs> Log;
         internal event AsyncEventHandler Terminated;
 
         private async Task Callback(object source, ActionEventArgs e) {
+            if (Host.ShuttingDown)
+                return;
+
             switch (e.ActionType) {
                 case PluginActionType.SignalTerminate:
                     if (Terminated == null)
@@ -39,7 +42,10 @@ namespace Convex.Plugin {
                     if (!(e.Result is string))
                         break;
 
-                    Log.Information((string)e.Result);
+                    if (Log == null)
+                        return;
+
+                    await Log.Invoke(this, new BasicEventArgs((string)e.Result));
                     break;
                 default:
                     throw new ArgumentOutOfRangeException();

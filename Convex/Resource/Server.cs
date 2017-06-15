@@ -2,24 +2,25 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
 using Convex.Event;
 using Convex.Net;
 using Convex.Resource.Reference;
-using Serilog;
 
 #endregion
 
 namespace Convex.Resource {
     public class Server : IDisposable {
-        public Connection Connection;
-
-        public Server(string address, int port) {
+    public Server(Connection connection) {
             Channels = new List<Channel>();
 
-            Connection = new Connection(address, port);
+            Connection = connection;
         }
+
+        public Connection Connection { get; }
 
         public bool Identified { get; set; }
         public bool Initialised { get; private set; }
@@ -69,11 +70,11 @@ namespace Convex.Resource {
             try {
                 data = await Connection.ReadAsync();
             } catch (NullReferenceException) {
-                Log.Warning("Stream disconnected. Attempting to reconnect...");
+                Debug.WriteLine("Stream disconnected. Attempting to reconnect...");
 
                 await InitializeStream();
             } catch (Exception ex) {
-                Log.Fatal(ex, "Exception occured while listening on stream");
+                Debug.WriteLine(ex, "Exception occured while listening on stream");
             }
 
             return data;
@@ -110,8 +111,10 @@ namespace Convex.Resource {
         #region init
 
         public async Task Initialise() {
-            Initialised = await InitializeStream();
+            Channels.Add(new Channel("Default"));
+            ChannelMessaged += SortMessage;
 
+            Initialised = await InitializeStream();
             Initialised = true;
         }
 
@@ -148,20 +151,16 @@ namespace Convex.Resource {
 
         #region channel methods
 
+        private Task SortMessage(object source, ServerMessagedEventArgs e) {
+            if (e.Message.) {
+                GetChannel(e.Message.Origin)
+            }
+        }
+
         public Channel GetChannel(string name) {
             return Channels.Single(channel => channel.Name.Equals(name));
         }
-
-        /// <summary>
-        ///     Check if message's channel origin should be added to channel list
-        /// </summary>
-        public void AddChannel(string name) {
-            if (name.StartsWith("#") &&
-                !Channels.Any(e => e.Name.Equals(name)))
-                Channels.Add(new Channel(name));
-        }
-
-        public bool ChannelExists(string channelName) => Channels.Any(channel => channel.Name.Equals(channelName));
+        
         public int RemoveChannel(string name) => Channels.RemoveAll(channel => channel.Name.Equals(name));
 
         #endregion

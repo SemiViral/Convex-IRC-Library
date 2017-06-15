@@ -13,7 +13,7 @@
  - Stream objects now have a custom base class, `Stream` in `Convex.Resources`.
    - a note: logging to file doesn't work currently, will fix in a later patch
 
-## 1.3.2 — .NET Standard 1.6
+### 1.3.2 — .NET Standard 1.6
 
 #### General
 
@@ -45,7 +45,7 @@
 
  - Config file is now saved correctly.
 
-## 1.3.3
+### 1.3.3
 
 #### General
 
@@ -53,7 +53,7 @@
 
  - Plugins directory is now absolute from runtime root directory
 
-## 1.3.5
+### 1.3.5
 
 #### General
 
@@ -84,13 +84,45 @@
 
  - Plugins are now properly loaded into the assembly.
 
-## 1.3.7 — Simplified async!
+### 1.3.7 — Simplified async!
 
 #### General 
+
  - The namespace structure has been changed to more accurate reflect the naming conventions set by MSDN.
 
  - Events now use `AsyncEventHandler`, offering vastly simplified implementation.
 
- - `SimpleMessage` renamed to `CommandEventArgs`
+##### SimpleMessage
 
- - `ChannelMessagedEventArgs` renamed to `ServerMessagedEventArgs`
+ - renamed `CommandEventArgs`
+
+##### ChannelMessagedEventArgs
+
+ - renamed `ServerMessagedEventArgs`
+
+### 1.3.8
+
+#### General
+
+ - Logging is temporarily no longer handled by the Convex library.
+  - this is likely to change. I need to work out how to handle it internally so it has the smallest impact on the overall package.
+
+### 1.3.9.3
+
+#### General
+
+ - Downgraded to .NETStandard 1.5 for compatability with current .NETFramework versions
+
+##### CHANGELOG.md
+
+ - Updated format to be more readable
+
+##### Client.cs
+
+ - New constructor: `public Client(string address, int port, string friendlyname = "")`
+
+ - Added `FriendlyName` property
+
+##### Server.cs
+
+ - New constructor: `public Server(Connection connection)`

@@ -2,28 +2,28 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
 using Convex.Event;
-using Serilog;
 
 #endregion
 
 namespace Convex.Plugin {
     internal class PluginHost {
         private const string PLUGIN_MASK = "Convex.*.dll";
-        private static readonly string _pluginsDirectory = $"{AppContext.BaseDirectory}\\Plugins";
+        private static readonly string pluginsDirectory = $"{AppContext.BaseDirectory}\\Plugins";
 
+        private readonly List<MethodsContainer<ServerMessagedEventArgs>> methodContainers = new List<MethodsContainer<ServerMessagedEventArgs>>();
         private readonly List<PluginInstance> plugins = new List<PluginInstance>();
 
         public bool ShuttingDown { get; private set; }
 
         public Dictionary<string, string> Commands { get; } = new Dictionary<string, string>();
 
-        private List<MethodsContainer<ServerMessagedEventArgs>> MethodContainers { get; } = new List<MethodsContainer<ServerMessagedEventArgs>>();
         public event AsyncEventHandler<ActionEventArgs> PluginCallback;
 
         public void StartPlugins() {
@@ -32,7 +32,7 @@ namespace Convex.Plugin {
         }
 
         public void StopPlugins() {
-            Log.Warning("STOP PLUGINS RECIEVED — shutting down.");
+            Debug.WriteLine("STOP PLUGINS RECIEVED — shutting down.");
             ShuttingDown = true;
 
             foreach (PluginInstance pluginInstance in plugins)
@@ -49,12 +49,12 @@ namespace Convex.Plugin {
 
         public void RegisterMethod(MethodRegistrar<ServerMessagedEventArgs> methodRegistrar) {
             if (ContainerByType(methodRegistrar.CommandType) == null)
-                MethodContainers.Add(new MethodsContainer<ServerMessagedEventArgs>(methodRegistrar.CommandType));
+                methodContainers.Add(new MethodsContainer<ServerMessagedEventArgs>(methodRegistrar.CommandType));
 
             // check whether commands exist and add to list
             if (!methodRegistrar.Definition.Equals(default(KeyValuePair<string, string>)))
                 if (Commands.ContainsKey(methodRegistrar.Definition.Key))
-                    Log.Information($"'{methodRegistrar.Definition.Key}' command already exists, skipping entry.");
+                    Debug.WriteLine($"'{methodRegistrar.Definition.Key}' command already exists, skipping entry.");
                 else
                     Commands.Add(methodRegistrar.Definition.Key, methodRegistrar.Definition.Value);
 
@@ -63,19 +63,19 @@ namespace Convex.Plugin {
         }
 
         private MethodsContainer<ServerMessagedEventArgs> ContainerByType(string type) {
-            return MethodContainers.SingleOrDefault(container => container.Command.Equals(type));
+            return methodContainers.SingleOrDefault(container => container.Command.Equals(type));
         }
 
         /// <summary>
         ///     Loads all plugins
         /// </summary>
         public void LoadPlugins() {
-            if (!Directory.Exists(_pluginsDirectory))
-                Directory.CreateDirectory(_pluginsDirectory);
+            if (!Directory.Exists(pluginsDirectory))
+                Directory.CreateDirectory(pluginsDirectory);
 
             try {
                 // array of all filepaths that are found to match the PLUGIN_MASK
-                IEnumerable<IPlugin> pluginInstances = Directory.GetFiles(_pluginsDirectory, PLUGIN_MASK, SearchOption.AllDirectories)
+                IEnumerable<IPlugin> pluginInstances = Directory.GetFiles(pluginsDirectory, PLUGIN_MASK, SearchOption.AllDirectories)
                     .SelectMany(GetPluginInstances);
 
                 foreach (IPlugin plugin in pluginInstances) {
@@ -84,9 +84,9 @@ namespace Convex.Plugin {
                 }
             } catch (ReflectionTypeLoadException ex) {
                 foreach (Exception loaderException in ex.LoaderExceptions)
-                    Log.Error(loaderException, "LoaderException occured loading a plugin");
+                    Debug.WriteLine(loaderException, "LoaderException occured loading a plugin");
             } catch (Exception ex) {
-                Log.Error(ex, "Error occured loading a plugin");
+                Debug.WriteLine(ex, "Error occured loading a plugin");
             }
         }
 
@@ -128,7 +128,7 @@ namespace Convex.Plugin {
                 if (autoStart)
                     plugin.Start();
             } catch (Exception ex) {
-                Log.Error(ex, $"Error adding plugin: {ex.Message}");
+                Debug.WriteLine(ex, $"Error adding plugin: {ex.Message}");
             }
         }
 

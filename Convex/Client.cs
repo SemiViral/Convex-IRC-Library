@@ -12,36 +12,37 @@ using Convex.Plugin;
 using Convex.Resource;
 using Convex.Resource.Reference;
 using Newtonsoft.Json;
-using Serilog;
 
 #endregion
 
 namespace Convex {
     public sealed partial class Client : IDisposable {
-        public readonly ClientConfiguration ClientConfiguration;
-        internal readonly PluginWrapper Wrapper;
+        private readonly string friendlyName;
+        private readonly PluginWrapper wrapper;
 
         private bool disposed;
 
         /// <summary>
-        ///     Initialises class
+        ///     Initialises class. No connections are made at init of class, so call `Initialise()` to begin sending and
+        ///     recieiving.
         /// </summary>
-        public Client(string address, int port) {
+        public Client(string address, int port, string friendlyName = "") {
             if (!Directory.Exists(ClientConfiguration.DefaultResourceDirectory))
                 Directory.CreateDirectory(ClientConfiguration.DefaultResourceDirectory);
 
             ClientConfiguration.CheckCreateConfig(ClientConfiguration.DefaultFilePath);
             ClientConfiguration = JsonConvert.DeserializeObject<ClientConfiguration>(File.ReadAllText(ClientConfiguration.DefaultFilePath));
 
-            Log.Logger = new LoggerConfiguration().WriteTo.RollingFile(ClientConfiguration.LogFilePath)
-                .WriteTo.LiterateConsole()
-                .CreateLogger();
-
-            Wrapper = new PluginWrapper();
+            wrapper = new PluginWrapper();
             MainDatabase = new Database(ClientConfiguration.DatabaseFilePath);
 
-            Server = new Server(address, port);
+            Connection conn = new Connection(address, port);
+            Server = new Server(conn);
+
+            this.friendlyName = friendlyName;
         }
+
+        public ClientConfiguration ClientConfiguration { get; }
 
         /// <summary>
         ///     Returns a specified command from commands list
@@ -49,7 +50,7 @@ namespace Convex {
         /// <param name="command">Command to be returned</param>
         /// <returns></returns>
         public KeyValuePair<string, string> GetCommand(string command) {
-            return Wrapper.Host.Commands.SingleOrDefault(x => x.Key.Equals(command));
+            return wrapper.Host.Commands.SingleOrDefault(x => x.Key.Equals(command));
         }
 
         /// <summary>
@@ -58,8 +59,44 @@ namespace Convex {
         /// <param name="command">comamnd name to be checked</param>
         /// <returns>True: exists; false: does not exist</returns>
         public bool CommandExists(string command) {
-            return Wrapper.Host.Commands.Keys.Contains(command);
+            return wrapper.Host.Commands.Keys.Contains(command);
         }
+
+        #region runtime
+
+        private async Task Listen(object source, ServerMessagedEventArgs e) {
+            if (string.IsNullOrEmpty(e.Message.Command))
+                return;
+
+            if (e.Message.Command.Equals(Commands.PRIVMSG)) {
+                if (e.Message.Origin.StartsWith("#") &&
+                    !Server.Channels.Any(channel => channel.Name.Equals(e.Message.Origin)))
+                    Server.Channels.Add(new Channel(e.Message.Origin));
+
+                if (GetUser(e.Message.Realname)
+                        ?.GetTimeout() ?? false)
+                    return;
+            } else if (e.Message.Command.Equals(Commands.ERROR)) {
+                Server.Executing = false;
+                return;
+            }
+
+            if (e.Message.Nickname.Equals(ClientConfiguration.Nickname) ||
+                ClientConfiguration.IgnoreList.Contains(e.Message.Realname))
+                return;
+
+            if (e.Message.SplitArgs.Count >= 2 &&
+                e.Message.SplitArgs[0].Equals(ClientConfiguration.Nickname.ToLower()))
+                e.Message.InputCommand = e.Message.SplitArgs[1].ToLower();
+
+            try {
+                await wrapper.Host.InvokeAsync(e);
+            } catch (Exception ex) {
+                await OnFailure(this, new BasicEventArgs(ex.ToString()));
+            }
+        }
+
+        #endregion
 
         #region variables
 
@@ -67,7 +104,7 @@ namespace Convex {
 
         public Server Server { get; }
 
-        public Dictionary<string, string> LoadedCommands => Wrapper.Host.Commands;
+        public Dictionary<string, string> LoadedCommands => wrapper.Host.Commands;
 
         public List<string> IgnoreList => ClientConfiguration.IgnoreList;
 
@@ -77,6 +114,10 @@ namespace Convex {
             .GetTypeInfo()
             .Assembly.FullName).Version;
 
+        public string FriendlyName => string.IsNullOrWhiteSpace(friendlyName)
+            ? Server.Connection.Address
+            : friendlyName;
+
         #endregion
 
         #region events
@@ -84,6 +125,9 @@ namespace Convex {
         public event AsyncEventHandler Queried;
         public event AsyncEventHandler Terminated;
         public event AsyncEventHandler Initialized;
+
+        public event AsyncEventHandler<BasicEventArgs> Failure;
+        public event AsyncEventHandler<BasicEventArgs> Log;
 
         private async Task OnQuery(object source, EventArgs e) {
             if (Queried == null)
@@ -95,6 +139,7 @@ namespace Convex {
         private async Task OnTerminated(object source, EventArgs e) {
             if (Terminated == null)
                 return;
+
             await Terminated?.Invoke(source, e);
         }
 
@@ -103,6 +148,20 @@ namespace Convex {
                 return;
 
             await Initialized.Invoke(source, e);
+        }
+
+        private async Task OnFailure(object source, BasicEventArgs e) {
+            if (Failure == null)
+                return;
+
+            await Failure.Invoke(this, e);
+        }
+
+        private async Task OnLog(object source, BasicEventArgs e) {
+            if (Log == null)
+                return;
+
+            await Log.Invoke(this, e);
         }
 
         #endregion
@@ -129,7 +188,7 @@ namespace Convex {
         private async Task SignalTerminate(object source, EventArgs e) {
             await OnTerminated(source, e);
 
-            Wrapper.Host.StopPlugins();
+            wrapper.Host.StopPlugins();
 
             Dispose();
         }
@@ -140,15 +199,14 @@ namespace Convex {
 
         public async Task<bool> Initialise() {
             await MainDatabase.Initialise();
-            Log.Information("Loaded database.");
 
-            Wrapper.Initialise();
-            Wrapper.Terminated += SignalTerminate;
-            Wrapper.CommandRecieved += Server.Connection.SendDataAsync;
+            wrapper.Initialise();
+            wrapper.Log += OnLog;
+            wrapper.Terminated += SignalTerminate;
+            wrapper.CommandRecieved += Server.Connection.SendDataAsync;
             RegisterMethods();
 
             await Server.Initialise();
-            Server.Connection.Flushed += LogDataSent;
             Server.ChannelMessaged += Listen;
             await Server.SendConnectionInfo(ClientConfiguration.Nickname, ClientConfiguration.Realname);
 
@@ -161,7 +219,6 @@ namespace Convex {
         ///     Register all methods
         /// </summary>
         private void RegisterMethods() {
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.MOTD_REPLY_END, MotdReplyEnd));
             RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.NICK, Nick));
             RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.JOIN, Join));
             RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.PART, Part));
@@ -171,54 +228,7 @@ namespace Convex {
         }
 
         public void RegisterMethod(MethodRegistrar<ServerMessagedEventArgs> methodRegistrar) {
-            Wrapper.Host.RegisterMethod(methodRegistrar);
-        }
-
-        #endregion
-
-        #region runtime
-
-        private async Task Listen(object source, ServerMessagedEventArgs e) {
-            if (string.IsNullOrEmpty(e.Message.Command))
-                return;
-
-            if (e.Message.Command.Equals(Commands.PRIVMSG)) {
-                Log.Information($"<{e.Message.Origin} {e.Message.Nickname}> {e.Message.Args}");
-
-                if (e.Message.Origin.StartsWith("#") &&
-                    !Server.ChannelExists(e.Message.Origin))
-                    Server.Channels.Add(new Channel(e.Message.Origin));
-
-                if (GetUser(e.Message.Realname)
-                        ?.GetTimeout() ?? false)
-                    return;
-            } else if (e.Message.Command.Equals(Commands.ERROR)) {
-                Log.Information(e.Message.RawMessage);
-                Server.Executing = false;
-                return;
-            } else {
-                Log.Information(e.Message.RawMessage);
-            }
-
-            if (e.Message.Nickname.Equals(ClientConfiguration.Nickname) ||
-                ClientConfiguration.IgnoreList.Contains(e.Message.Realname))
-                return;
-
-            if (e.Message.SplitArgs.Count >= 2 &&
-                e.Message.SplitArgs[0].Equals(ClientConfiguration.Nickname.ToLower()))
-                e.Message.InputCommand = e.Message.SplitArgs[1].ToLower();
-
-            try {
-                await Wrapper.Host.InvokeAsync(e);
-            } catch (Exception ex) {
-                Log.Warning(ex.ToString());
-            }
-        }
-
-        private static Task LogDataSent(object source, StreamFlushedEventArgs e) {
-            Log.Information($" >> {e.Contents}");
-
-            return Task.CompletedTask;
+            wrapper.Host.RegisterMethod(methodRegistrar);
         }
 
         #endregion

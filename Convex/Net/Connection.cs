@@ -29,7 +29,7 @@ namespace Convex.Net {
         }
 
         public async Task SendDataAsync(object source, CommandEventArgs message) {
-            await SendDataAsync(message.Command, message.Target, message.Args);
+            await SendDataAsync(message);
         }
 
         #region dispose
@@ -59,7 +59,7 @@ namespace Convex.Net {
             await writer.WriteLineAsync(writable);
             await writer.FlushAsync();
 
-            await OnFlushed(this, new StreamFlushedEventArgs(writable));
+            await OnFlushed(this, new BasicEventArgs(writable));
         }
 
         public async Task<string> ReadAsync() {
@@ -71,9 +71,9 @@ namespace Convex.Net {
 
         #region events
 
-        public event AsyncEventHandler<StreamFlushedEventArgs> Flushed;
+        public event AsyncEventHandler<BasicEventArgs> Flushed;
 
-        private async Task OnFlushed(object source, StreamFlushedEventArgs e) {
+        private async Task OnFlushed(object source, BasicEventArgs e) {
             if (Flushed == null)
                 return;
 
@@ -81,15 +81,5 @@ namespace Convex.Net {
         }
 
         #endregion
-    }
-
-    public class StreamFlushedEventArgs : EventArgs {
-        public StreamFlushedEventArgs(string contents) {
-            Timestamp = DateTime.Now;
-            Contents = contents;
-        }
-
-        public DateTime Timestamp { get; set; }
-        public string Contents { get; set; }
     }
 }

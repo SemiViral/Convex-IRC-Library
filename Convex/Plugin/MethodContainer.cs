@@ -7,7 +7,8 @@ using Convex.Event;
 #endregion
 
 namespace Convex.Plugin {
-    internal class MethodsContainer<TEventArgs> where TEventArgs : EventArgs {
+    internal class MethodsContainer<TEventArgs>
+        where TEventArgs : EventArgs {
         public MethodsContainer(string command) {
             Command = command;
         }

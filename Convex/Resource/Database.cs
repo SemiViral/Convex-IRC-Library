@@ -5,13 +5,13 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Convex.ComponentModel;
 using Convex.Event;
 using Microsoft.Data.Sqlite;
-using Serilog;
 
 #endregion
 
@@ -44,12 +44,10 @@ namespace Convex.Resource {
             if (File.Exists(FilePath))
                 return;
 
-            Log.Information("Main database not found, creating.");
-
             using (SqliteConnection connection = GetConnection(FilePath, SqliteOpenMode.ReadWriteCreate)) {
                 connection.Open();
-                await connection.QueryAsync(new QueryEventArgs("CREATE TABLE IF NOT EXISTS users (id int, nickname string, realname string, access int, seen string)"));
-                await connection.QueryAsync(new QueryEventArgs("CREATE TABLE IF NOT EXISTS messages (id int, sender string, message string, datetime string)"));
+                await connection.QueryAsync(new BasicEventArgs("CREATE TABLE IF NOT EXISTS users (id int, nickname string, realname string, access int, seen string)"));
+                await connection.QueryAsync(new BasicEventArgs("CREATE TABLE IF NOT EXISTS messages (id int, sender string, message string, datetime string)"));
             }
         }
 
@@ -162,17 +160,17 @@ namespace Convex.Resource {
         /// <param name="realname">realname of user</param>
         /// <param name="seen">last time user was seen</param>
         internal async Task CreateUserAsync(int access, string nickname, string realname, DateTime seen) {
-            Log.Information($"Creating database entry for {realname}.");
+            Debug.WriteLine($"Creating database entry for {realname}.");
 
             await GetConnection(FilePath)
-                .QueryAsync(new QueryEventArgs($"INSERT INTO users VALUES ({GetLastDatabaseId() + 1}, '{nickname}', '{realname}', {access}, '{seen}')"));
+                .QueryAsync(new BasicEventArgs($"INSERT INTO users VALUES ({GetLastDatabaseId() + 1}, '{nickname}', '{realname}', {access}, '{seen}')"));
         }
 
         internal void CreateUser(int access, string nickname, string realname, DateTime seen) {
-            Log.Information($"Creating database entry for {realname}.");
+            Debug.WriteLine($"Creating database entry for {realname}.");
 
             GetConnection(FilePath)
-                .Query(new QueryEventArgs($"INSERT INTO users VALUES ({GetLastDatabaseId() + 1}, '{nickname}', '{realname}', {access}, '{seen}')"));
+                .Query(new BasicEventArgs($"INSERT INTO users VALUES ({GetLastDatabaseId() + 1}, '{nickname}', '{realname}', {access}, '{seen}')"));
         }
 
         #region user automation
@@ -206,18 +204,18 @@ namespace Convex.Resource {
                 Message message = (Message)item;
 
                 GetConnection(FilePath)
-                    .Query(new QueryEventArgs($"INSERT INTO messages VALUES ({message.Id}, '{message.Sender}', '{message.Contents}', '{message.Date}')"));
+                    .Query(new BasicEventArgs($"INSERT INTO messages VALUES ({message.Id}, '{message.Sender}', '{message.Contents}', '{message.Date}')"));
             }
         }
 
         private void AutoUpdateUsers(object source, PropertyChangedEventArgs e) {
-            if (!(e is SpecialPropertyChangedEventArgs))
+            if (!(e is UserPropertyChangedEventArgs))
                 return;
 
-            SpecialPropertyChangedEventArgs castedArgs = (SpecialPropertyChangedEventArgs)e;
+            UserPropertyChangedEventArgs castedArgs = (UserPropertyChangedEventArgs)e;
 
             GetConnection(FilePath)
-                .Query(new QueryEventArgs($"UPDATE users SET {castedArgs.PropertyName}='{castedArgs.NewValue}' WHERE realname='{castedArgs.Name}'"));
+                .Query(new BasicEventArgs($"UPDATE users SET {castedArgs.PropertyName}='{castedArgs.NewValue}' WHERE realname='{castedArgs.Name}'"));
         }
 
         #endregion

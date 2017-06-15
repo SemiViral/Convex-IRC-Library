@@ -11,7 +11,7 @@ using System.Text;
 namespace Convex.Plugin.Calculator {
     public partial class InlineCalculator {
         private string expression;
-        
+
         private Stack<double> operands;
         private Stack<string> operators;
 
@@ -192,7 +192,9 @@ namespace Convex.Plugin.Calculator {
         }
 
         private bool Normalize(ref string s) {
-            s = s.Replace(" ", "").Replace("\t", " ").ToLower() + Token.END;
+            s = s.Replace(" ", "")
+                    .Replace("\t", " ")
+                    .ToLower() + Token.END;
 
             if (s.Length < 2)
                 return false;
@@ -205,7 +207,7 @@ namespace Convex.Plugin.Calculator {
             throw new CalculateException(message, tokenPos);
         }
     }
-    
+
     public class CalculateException : Exception {
         public CalculateException(string message, int position) : base($"Error at position: {position}, {message}") {
             TokenPosition = position;

@@ -7,7 +7,8 @@ using System.Threading.Tasks;
 #endregion
 
 namespace Convex.Plugin {
-    public class MethodRegistrar<TEventArgs> where TEventArgs : EventArgs {
+    public class MethodRegistrar<TEventArgs>
+        where TEventArgs : EventArgs {
         public readonly Func<TEventArgs, Task> Method;
 
         public readonly Predicate<TEventArgs> PreprocessCheck;
