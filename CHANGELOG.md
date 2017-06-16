@@ -13,7 +13,7 @@
  - Stream objects now have a custom base class, `Stream` in `Convex.Resources`.
    - a note: logging to file doesn't work currently, will fix in a later patch
 
-### 1.3.2 — .NET Standard 1.6
+##- 1.3.2 — .NET Standard 1.6
 
 #### General
 
@@ -23,18 +23,22 @@
 
  - Logging is now handled by the [Serilog](https://serilog.net/) dependency.
  
- - Server's listener is now changed to be recursively triggered (see: `Server.cs, QueueAsync(Client caller)`).
+ - **Server.cs**
+    - listener is now changed to be recursively triggered (see: `QueueAsync(Client caller)`).
  
- - Config now houses the default file paths as static strings.
-    - Along with this, the file paths for Database and Log in the config file are left blank. Iif left empty the default file paths will be used.
+ - **Config**
+    - added static fields of default filepaths.
+    - `Log/DatabaseFilePath` defaults to `DefaultLog/DatabaseFilePath` if left unset.
 
- - `ObservableCollection<User> Users` has been moved to the `Database` class.
+ - **Database.cs**
+    - `ObservableCollection<User> Users` has been moved to the `Database` class.
  
- - Small update to README.
+ - **README.md**
+    - Added some info
 
 #### Plugins
 
- - Plugins are no longer unloadable. The assembly instances are now loaded directly into the base assembly at runtime.
+ - Plugins are no longer unloadable. The assembly instances are now loaded into the base AppDomain at runtime.
 
  - Methods are now subscribed to an `AsyncEvent` event, rather than instanced separately in a list.
     - Accordingly, subscribed methods must now be asynchronous
@@ -45,7 +49,7 @@
 
  - Config file is now saved correctly.
 
-### 1.3.3
+## 1.3.3
 
 #### General
 
@@ -53,20 +57,23 @@
 
  - Plugins directory is now absolute from runtime root directory
 
-### 1.3.5
+## 1.3.5
 
 #### General
 
- - `Config` has changed to `ClientConfiguration`
-    - `Server` object no longer in the object, or the JSON config file.
+ - Fixed some possible encapsulation issues with public/private methods and properties.
+ - Assembly version in `Client.cs` and `Core.cs` are now accurately assigned.
 
- - There is now a base type `Message`, which `ChannelMessage` and `SimpleMessage` (previously `SimpleReturnMessage`) inherit from.
+ - **Config.cs**
+    - Renamed `ClientConfiguration.cs`.
+    - Moved `Server` property to `Client.cs`.
 
- - Fixed some possible encapsulation issues with public/private methods and properties
+ - **Message.cs**
+    - Added this as base class for `ChannelMessage` and `SimpleMessage` to inherit from.
 
- - Assembly version in `Client.cs` and `Core.cs` are now accurately assigned
 
- - Moved the `Convex.Plugins.Core` to namespace contents to `Convex.Plugin.Core`, in accordance with Convex namespace naming conventions.
+ - **Convex.Plugins.Core**
+    - Renamed `Convex.Plugin.Core`.
 
 #### Plugins
  
@@ -84,7 +91,7 @@
 
  - Plugins are now properly loaded into the assembly.
 
-### 1.3.7 — Simplified async!
+## 1.3.7 — Simplified async!
 
 #### General 
 
@@ -100,14 +107,14 @@
 
  - renamed `ServerMessagedEventArgs`
 
-### 1.3.8
+## 1.3.8
 
 #### General
 
  - Logging is temporarily no longer handled by the Convex library.
   - this is likely to change. I need to work out how to handle it internally so it has the smallest impact on the overall package.
 
-### 1.3.9.3
+## 1.3.9.3
 
 #### General
 
