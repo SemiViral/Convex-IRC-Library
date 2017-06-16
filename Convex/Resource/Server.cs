@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
@@ -14,7 +13,7 @@ using Convex.Resource.Reference;
 
 namespace Convex.Resource {
     public class Server : IDisposable {
-    public Server(Connection connection) {
+        public Server(Connection connection) {
             Channels = new List<Channel>();
 
             Connection = connection;
@@ -111,7 +110,7 @@ namespace Convex.Resource {
         #region init
 
         public async Task Initialise() {
-            Channels.Add(new Channel("Default"));
+            Channels.Add(new Channel(Connection.Address));
             ChannelMessaged += SortMessage;
 
             Initialised = await InitializeStream();
@@ -152,15 +151,20 @@ namespace Convex.Resource {
         #region channel methods
 
         private Task SortMessage(object source, ServerMessagedEventArgs e) {
-            if (e.Message.) {
+            if (GetChannel(e.Message.Origin) == null)
+                GetChannel(Connection.Address)
+                    .Messages.Add(e.Message);
+            else
                 GetChannel(e.Message.Origin)
-            }
+                    .Messages.Add(e.Message);
+
+            return Task.CompletedTask;
         }
 
         public Channel GetChannel(string name) {
             return Channels.Single(channel => channel.Name.Equals(name));
         }
-        
+
         public int RemoveChannel(string name) => Channels.RemoveAll(channel => channel.Name.Equals(name));
 
         #endregion
