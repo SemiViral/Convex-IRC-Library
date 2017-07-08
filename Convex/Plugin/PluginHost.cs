@@ -9,6 +9,8 @@ using System.Reflection;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
 using Convex.Event;
+using Convex.Plugin.Registrar;
+using Convex.Resource.Reference;
 
 #endregion
 
@@ -20,9 +22,14 @@ namespace Convex.Plugin {
         private readonly List<MethodsContainer<ServerMessagedEventArgs>> methodContainers = new List<MethodsContainer<ServerMessagedEventArgs>>();
         private readonly List<PluginInstance> plugins = new List<PluginInstance>();
 
+        public PluginHost() {
+            // any registrar without a command is put here
+            methodContainers.Add(new MethodsContainer<ServerMessagedEventArgs>(Commands.DEFAULT));
+        }
+
         public bool ShuttingDown { get; private set; }
 
-        public Dictionary<string, string> Commands { get; } = new Dictionary<string, string>();
+        public Dictionary<string, string> DescriptionRegistry { get; } = new Dictionary<string, string>();
 
         public event AsyncEventHandler<ActionEventArgs> PluginCallback;
 
@@ -40,30 +47,35 @@ namespace Convex.Plugin {
         }
 
         public async Task InvokeAsync(ServerMessagedEventArgs e) {
-            if (ContainerByType(e.Message.Command) == null)
-                return;
+            if (ContainerByType(e.Message.Command) != null)
+                await ContainerByType(e.Message.Command)
+                    .InvokeAllAsync(this, e);
 
-            await ContainerByType(e.Message.Command)
+            await ContainerByType(Commands.DEFAULT)
                 .InvokeAllAsync(this, e);
         }
 
-        public void RegisterMethod(MethodRegistrar<ServerMessagedEventArgs> methodRegistrar) {
-            if (ContainerByType(methodRegistrar.CommandType) == null)
-                methodContainers.Add(new MethodsContainer<ServerMessagedEventArgs>(methodRegistrar.CommandType));
+        public void RegisterMethod(IAsyncRegistrar<ServerMessagedEventArgs> methodRegistrar) {
+            if (!string.IsNullOrWhiteSpace(methodRegistrar.Command)) {
+                if (ContainerByType(methodRegistrar.Command) == null)
+                    methodContainers.Add(new MethodsContainer<ServerMessagedEventArgs>(methodRegistrar.Command));
 
-            // check whether commands exist and add to list
-            if (!methodRegistrar.Definition.Equals(default(KeyValuePair<string, string>)))
-                if (Commands.ContainsKey(methodRegistrar.Definition.Key))
-                    Debug.WriteLine($"'{methodRegistrar.Definition.Key}' command already exists, skipping entry.");
-                else
-                    Commands.Add(methodRegistrar.Definition.Key, methodRegistrar.Definition.Value);
+                if (!methodRegistrar.Description.Equals(default(KeyValuePair<string, string>)))
+                    if (DescriptionRegistry.Keys.Contains(methodRegistrar.Description.Key))
+                        Debug.WriteLine($"'{methodRegistrar.Description.Key}' description already exists, skipping entry.");
+                    else
+                        DescriptionRegistry.Add(methodRegistrar.Description.Key, methodRegistrar.Description.Value);
 
-            ContainerByType(methodRegistrar.CommandType)
-                .SubmitRegistrar(methodRegistrar);
+                ContainerByType(methodRegistrar.Command)
+                    ?.SubmitRegistrar(methodRegistrar);
+            } else {
+                ContainerByType(Commands.DEFAULT)
+                    ?.SubmitRegistrar(methodRegistrar);
+            }
         }
 
-        private MethodsContainer<ServerMessagedEventArgs> ContainerByType(string type) {
-            return methodContainers.SingleOrDefault(container => container.Command.Equals(type));
+        private MethodsContainer<ServerMessagedEventArgs> ContainerByType(string command) {
+            return methodContainers.SingleOrDefault(container => container.Command.Equals(command));
         }
 
         /// <summary>
@@ -121,7 +133,7 @@ namespace Convex.Plugin {
         /// </summary>
         /// <param name="plugin">plugin instance</param>
         /// <param name="autoStart">start plugin immediately</param>
-        public void AddPlugin(IPlugin plugin, bool autoStart) {
+        private void AddPlugin(IPlugin plugin, bool autoStart) {
             try {
                 plugins.Add(new PluginInstance(plugin, PluginStatus.Stopped));
 

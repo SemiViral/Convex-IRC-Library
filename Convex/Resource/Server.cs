@@ -114,7 +114,6 @@ namespace Convex.Resource {
             ChannelMessaged += SortMessage;
 
             Initialised = await InitializeStream();
-            Initialised = true;
         }
 
         /// <summary>
@@ -162,7 +161,7 @@ namespace Convex.Resource {
         }
 
         public Channel GetChannel(string name) {
-            return Channels.Single(channel => channel.Name.Equals(name));
+            return Channels.SingleOrDefault(channel => channel.Name.Equals(name));
         }
 
         public int RemoveChannel(string name) => Channels.RemoveAll(channel => channel.Name.Equals(name));

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Convex.Event;
 using Convex.Plugin;
+using Convex.Plugin.Registrar;
 using Convex.Resource;
 using Convex.Resource.Reference;
 using Serilog;
@@ -90,7 +91,7 @@ namespace Convex.Example {
         ///     Register all methods
         /// </summary>
         private void RegisterMethods() {
-            bot.RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, Info, e => e.Message.InputCommand.Equals("info"), new KeyValuePair<string, string>("info", "returns the basic information about this bot")));
+            bot.RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Info, e => e.Message.InputCommand.Equals(nameof(Info).ToLower()), Commands.PRIVMSG, new KeyValuePair<string, string>(nameof(Info), "returns the basic information about this bot")));
         }
 
         private async Task Info(ServerMessagedEventArgs e) {

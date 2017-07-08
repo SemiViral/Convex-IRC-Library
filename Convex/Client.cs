@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using Convex.Event;
 using Convex.Net;
 using Convex.Plugin;
+using Convex.Plugin.Registrar;
 using Convex.Resource;
 using Convex.Resource.Reference;
 using Newtonsoft.Json;
@@ -50,7 +51,7 @@ namespace Convex {
         /// <param name="command">Command to be returned</param>
         /// <returns></returns>
         public KeyValuePair<string, string> GetCommand(string command) {
-            return wrapper.Host.Commands.SingleOrDefault(x => x.Key.Equals(command));
+            return wrapper.Host.DescriptionRegistry.SingleOrDefault(x => x.Key.Equals(command, StringComparison.CurrentCultureIgnoreCase));
         }
 
         /// <summary>
@@ -59,7 +60,7 @@ namespace Convex {
         /// <param name="command">comamnd name to be checked</param>
         /// <returns>True: exists; false: does not exist</returns>
         public bool CommandExists(string command) {
-            return wrapper.Host.Commands.Keys.Contains(command);
+            return !GetCommand(command).Equals(default(KeyValuePair<string, string>));
         }
 
         #region runtime
@@ -104,7 +105,7 @@ namespace Convex {
 
         public Server Server { get; }
 
-        public Dictionary<string, string> LoadedCommands => wrapper.Host.Commands;
+        public Dictionary<string, string> LoadedCommands => wrapper.Host.DescriptionRegistry;
 
         public List<string> IgnoreList => ClientConfiguration.IgnoreList;
 
@@ -219,15 +220,15 @@ namespace Convex {
         ///     Register all methods
         /// </summary>
         private void RegisterMethods() {
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.NICK, Nick));
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.JOIN, Join));
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.PART, Part));
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.CHANNEL_TOPIC, ChannelTopic));
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.TOPIC, NewTopic));
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.NAMES_REPLY, NamesReply));
+            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Nick, null, Commands.NICK, null));
+            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Join, null, Commands.JOIN, null));
+            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Part, null, Commands.PART, null));
+            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(ChannelTopic, null, Commands.CHANNEL_TOPIC, null));
+            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(NewTopic, null, Commands.TOPIC, null));
+            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(NamesReply, null, Commands.NAMES_REPLY, null));
         }
 
-        public void RegisterMethod(MethodRegistrar<ServerMessagedEventArgs> methodRegistrar) {
+        public void RegisterMethod(IAsyncRegistrar<ServerMessagedEventArgs> methodRegistrar) {
             wrapper.Host.RegisterMethod(methodRegistrar);
         }
 
