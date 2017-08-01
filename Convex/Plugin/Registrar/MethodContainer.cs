@@ -1,39 +1,32 @@
 ﻿#region usings
 
 using System;
-using System.Diagnostics;
 using System.Threading.Tasks;
 using Convex.Event;
-using Convex.Plugin.Registrar;
 
 #endregion
 
-namespace Convex.Plugin {
+namespace Convex.Plugin.Registrar {
     internal class MethodsContainer<TEventArgs>
         where TEventArgs : EventArgs {
-        public MethodsContainer(string command) {
-            Debug.WriteLine($"Created method container for {command}");
-
-            Command = command;
-        }
-
-        public string Command { get; }
+        public MethodsContainer() {}
+        
         private event AsyncEventHandler<TEventArgs> ChannelMessaged;
 
-        public void SubmitRegistrar(IAsyncRegistrar<TEventArgs> registrar) {
+        public void Register(Predicate<TEventArgs> canExecute, Func<TEventArgs, Task> method) {
             ChannelMessaged += async (source, e) => {
-                if (!registrar.CanExecute(e))
+                if (!canExecute(e))
                     return;
 
-                await registrar.Composition(e);
+                await method(e);
             };
         }
 
-        public async Task InvokeAllAsync(object source, TEventArgs e) {
+        public async Task InvokeAsync(object source, TEventArgs args) {
             if (ChannelMessaged == null)
                 return;
 
-            await ChannelMessaged.Invoke(source, e);
+            await ChannelMessaged.Invoke(source, args);
         }
     }
 }

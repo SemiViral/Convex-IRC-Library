@@ -9,10 +9,9 @@ using System.Threading.Tasks;
 namespace Convex.Plugin.Registrar {
     public interface IAsyncRegistrar<in T> {
         Predicate<T> CanExecute { get; }
-        Func<T, Task> Composition { get; }
+        Func<T, Task> Method { get; }
         KeyValuePair<string, string> Description { get; }
         string Command { get; }
         bool IsRegistered { get; }
-
     }
 }

@@ -46,7 +46,7 @@ namespace Convex.Plugin {
     }
 
     public enum PluginStatus {
-        Stopped = 0,
+        Stopped,
         Running,
         Processing
     }

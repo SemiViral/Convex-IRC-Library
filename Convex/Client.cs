@@ -18,7 +18,6 @@ using Newtonsoft.Json;
 
 namespace Convex {
     public sealed partial class Client : IDisposable {
-        private readonly string friendlyName;
         private readonly PluginWrapper wrapper;
 
         private bool disposed;
@@ -27,7 +26,7 @@ namespace Convex {
         ///     Initialises class. No connections are made at init of class, so call `Initialise()` to begin sending and
         ///     recieiving.
         /// </summary>
-        public Client(string address, int port, string friendlyName = "") {
+        public Client(string address, int port) {
             if (!Directory.Exists(ClientConfiguration.DefaultResourceDirectory))
                 Directory.CreateDirectory(ClientConfiguration.DefaultResourceDirectory);
 
@@ -39,29 +38,9 @@ namespace Convex {
 
             Connection conn = new Connection(address, port);
             Server = new Server(conn);
-
-            this.friendlyName = friendlyName;
         }
 
         public ClientConfiguration ClientConfiguration { get; }
-
-        /// <summary>
-        ///     Returns a specified command from commands list
-        /// </summary>
-        /// <param name="command">Command to be returned</param>
-        /// <returns></returns>
-        public KeyValuePair<string, string> GetCommand(string command) {
-            return wrapper.Host.DescriptionRegistry.SingleOrDefault(x => x.Key.Equals(command, StringComparison.CurrentCultureIgnoreCase));
-        }
-
-        /// <summary>
-        ///     Checks whether specified comamnd exists
-        /// </summary>
-        /// <param name="command">comamnd name to be checked</param>
-        /// <returns>True: exists; false: does not exist</returns>
-        public bool CommandExists(string command) {
-            return !GetCommand(command).Equals(default(KeyValuePair<string, string>));
-        }
 
         #region runtime
 
@@ -91,7 +70,7 @@ namespace Convex {
                 e.Message.InputCommand = e.Message.SplitArgs[1].ToLower();
 
             try {
-                await wrapper.Host.InvokeAsync(e);
+                await wrapper.Host.InvokeAsync(this, e);
             } catch (Exception ex) {
                 await OnFailure(this, new BasicEventArgs(ex.ToString()));
             }
@@ -114,10 +93,6 @@ namespace Convex {
         public Version Version => new AssemblyName(GetType()
             .GetTypeInfo()
             .Assembly.FullName).Version;
-
-        public string FriendlyName => string.IsNullOrWhiteSpace(friendlyName)
-            ? Server.Connection.Address
-            : friendlyName;
 
         #endregion
 
@@ -246,6 +221,25 @@ namespace Convex {
         public User GetUser(string realname) => MainDatabase.Users.SingleOrDefault(user => user.Realname.Equals(realname));
 
         public bool UserExists(string userName) => MainDatabase.Users.Any(user => user.Realname.Equals(userName));
+
+        /// <summary>
+        ///     Returns a specified command from commands list
+        /// </summary>
+        /// <param name="command">Command to be returned</param>
+        /// <returns></returns>
+        public KeyValuePair<string, string> GetCommand(string command) {
+            return wrapper.Host.DescriptionRegistry.SingleOrDefault(x => x.Key.Equals(command, StringComparison.CurrentCultureIgnoreCase));
+        }
+
+        /// <summary>
+        ///     Checks whether specified comamnd exists
+        /// </summary>
+        /// <param name="command">comamnd name to be checked</param>
+        /// <returns>True: exists; false: does not exist</returns>
+        public bool CommandExists(string command) {
+            return !GetCommand(command)
+                .Equals(default(KeyValuePair<string, string>));
+        }
 
         #endregion
     }

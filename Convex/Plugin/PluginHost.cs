@@ -10,7 +10,6 @@ using System.Runtime.Loader;
 using System.Threading.Tasks;
 using Convex.Event;
 using Convex.Plugin.Registrar;
-using Convex.Resource.Reference;
 
 #endregion
 
@@ -19,13 +18,10 @@ namespace Convex.Plugin {
         private const string PLUGIN_MASK = "Convex.*.dll";
         private static readonly string pluginsDirectory = $"{AppContext.BaseDirectory}\\Plugins";
 
-        private readonly List<MethodsContainer<ServerMessagedEventArgs>> methodContainers = new List<MethodsContainer<ServerMessagedEventArgs>>();
+        private readonly MethodDomain<ServerMessagedEventArgs> methods = new MethodDomain<ServerMessagedEventArgs>();
         private readonly List<PluginInstance> plugins = new List<PluginInstance>();
 
-        public PluginHost() {
-            // any registrar without a command is put here
-            methodContainers.Add(new MethodsContainer<ServerMessagedEventArgs>(Commands.DEFAULT));
-        }
+        public PluginHost() {}
 
         public bool ShuttingDown { get; private set; }
 
@@ -46,36 +42,20 @@ namespace Convex.Plugin {
                 pluginInstance.Instance.Stop();
         }
 
-        public async Task InvokeAsync(ServerMessagedEventArgs e) {
-            if (ContainerByType(e.Message.Command) != null)
-                await ContainerByType(e.Message.Command)
-                    .InvokeAllAsync(this, e);
-
-            await ContainerByType(Commands.DEFAULT)
-                .InvokeAllAsync(this, e);
+        public async Task InvokeAsync(object source, ServerMessagedEventArgs e) {
+            await methods.InvokeAsync(source, e);
         }
 
         public void RegisterMethod(IAsyncRegistrar<ServerMessagedEventArgs> methodRegistrar) {
             if (!string.IsNullOrWhiteSpace(methodRegistrar.Command)) {
-                if (ContainerByType(methodRegistrar.Command) == null)
-                    methodContainers.Add(new MethodsContainer<ServerMessagedEventArgs>(methodRegistrar.Command));
-
                 if (!methodRegistrar.Description.Equals(default(KeyValuePair<string, string>)))
                     if (DescriptionRegistry.Keys.Contains(methodRegistrar.Description.Key))
                         Debug.WriteLine($"'{methodRegistrar.Description.Key}' description already exists, skipping entry.");
                     else
                         DescriptionRegistry.Add(methodRegistrar.Description.Key, methodRegistrar.Description.Value);
 
-                ContainerByType(methodRegistrar.Command)
-                    ?.SubmitRegistrar(methodRegistrar);
-            } else {
-                ContainerByType(Commands.DEFAULT)
-                    ?.SubmitRegistrar(methodRegistrar);
+                methods.SubmitRegistrar(methodRegistrar);
             }
-        }
-
-        private MethodsContainer<ServerMessagedEventArgs> ContainerByType(string command) {
-            return methodContainers.SingleOrDefault(container => container.Command.Equals(command));
         }
 
         /// <summary>
