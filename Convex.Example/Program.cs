@@ -27,8 +27,6 @@ namespace Convex.Example {
         private static void Main() {
             InitialiseAndExecute()
                 .Wait();
-
-            Console.ReadLine();
         }
     }
 }

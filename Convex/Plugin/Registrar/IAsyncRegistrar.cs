@@ -11,7 +11,7 @@ namespace Convex.Plugin.Registrar {
         Predicate<T> CanExecute { get; }
         Func<T, Task> Method { get; }
         KeyValuePair<string, string> Description { get; }
-        string Command { get; }
+        object Identifier { get; }
         bool IsRegistered { get; }
     }
 }

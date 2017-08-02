@@ -22,7 +22,7 @@ namespace Convex.Plugin.Registrar {
 
             Method = composition;
             CanExecute = canExecute ?? (obj => true);
-            Command = command ?? Commands.DEFAULT;
+            Identifier = command ?? Commands.DEFAULT;
             Description = description ?? default(KeyValuePair<string, string>);
 
             IsRegistered = true;
@@ -31,7 +31,7 @@ namespace Convex.Plugin.Registrar {
         public Func<TEventArgs, Task> Method { get; }
         public Predicate<TEventArgs> CanExecute { get; }
 
-        public string Command { get; }
+        public object Identifier { get; }
         public KeyValuePair<string, string> Description { get; }
         public bool IsRegistered { get; }
     }

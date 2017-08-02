@@ -11,14 +11,14 @@ namespace Convex.Plugin.Registrar
 {
     public class MethodDomain<TEventArgs> where TEventArgs : EventArgs
     {
-        private readonly Dictionary<string, MethodsContainer<TEventArgs>> methods = new Dictionary<string, MethodsContainer<TEventArgs>>();
+        private readonly Dictionary<object, MethodsContainer<TEventArgs>> methods = new Dictionary<object, MethodsContainer<TEventArgs>>();
 
         public void SubmitRegistrar(IAsyncRegistrar<TEventArgs> registrar) {
-            if (!methods.ContainsKey(registrar.Command)) {
-                methods.Add(registrar.Command, new MethodsContainer<TEventArgs>());
+            if (!methods.ContainsKey(registrar.Identifier)) {
+                methods.Add(registrar.Identifier, new MethodsContainer<TEventArgs>());
             }
 
-            methods[registrar.Command].Register(registrar.CanExecute, registrar.Method);            
+            methods[registrar.Identifier].Register(registrar.CanExecute, registrar.Method);            
         }
 
         public async Task InvokeAsync(object source, TEventArgs args) {

@@ -129,3 +129,13 @@
  
  - **Server.cs**
    - New constructor: `public Server(Connection connection)`
+
+## 1.3.9.5
+
+#### General
+
+ - **ADDED: MethodDomain.cs**
+  - Overlay for keeping and adding plugin methods
+
+ - **IAsyncRegistrar.cs**
+  - `string Command` to `object Identifier`

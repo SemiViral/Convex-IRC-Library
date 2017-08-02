@@ -47,7 +47,7 @@ namespace Convex.Plugin {
         }
 
         public void RegisterMethod(IAsyncRegistrar<ServerMessagedEventArgs> methodRegistrar) {
-            if (!string.IsNullOrWhiteSpace(methodRegistrar.Command)) {
+            if (methodRegistrar.Identifier != null) {
                 if (!methodRegistrar.Description.Equals(default(KeyValuePair<string, string>)))
                     if (DescriptionRegistry.Keys.Contains(methodRegistrar.Description.Key))
                         Debug.WriteLine($"'{methodRegistrar.Description.Key}' description already exists, skipping entry.");
