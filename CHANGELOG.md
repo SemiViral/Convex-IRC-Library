@@ -130,7 +130,7 @@
  - **Server.cs**
    - New constructor: `public Server(Connection connection)`
 
-## 1.3.9.5
+## 1.3.9.7
 
 #### General
 
