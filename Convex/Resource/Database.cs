@@ -36,13 +36,15 @@ namespace Convex.Resource {
         public async Task Initialise() {
             await CheckCreate();
 
-            foreach (User user in LoadUsers())
+            foreach (User user in LoadUsers()) {
                 Users.Add(user);
+            }
         }
 
         private async Task CheckCreate() {
-            if (File.Exists(FilePath))
+            if (File.Exists(FilePath)) {
                 return;
+            }
 
             using (SqliteConnection connection = GetConnection(FilePath, SqliteOpenMode.ReadWriteCreate)) {
                 connection.Open();
@@ -72,8 +74,8 @@ namespace Convex.Resource {
                     using (SqliteDataReader userEntries = getUsers.ExecuteReader()) {
                         while (userEntries.Read()) {
                             int id = Convert.ToInt32(userEntries.GetValue(0));
-                            string nickname = userEntries.GetValue(1)
-                                .ToString();
+                            string nickname = userEntries.GetValue(1).
+                                ToString();
                             string realname = (string)userEntries.GetValue(2);
                             int access = Convert.ToInt32(userEntries.GetValue(3));
                             DateTime seen = DateTime.Parse((string)userEntries.GetValue(4));
@@ -111,8 +113,9 @@ namespace Convex.Resource {
         }
 
         private void ReadMessagesIntoUsers() {
-            if (Users.Count.Equals(0))
+            if (Users.Count.Equals(0)) {
                 return;
+            }
 
             using (SqliteConnection connection = GetConnection(FilePath)) {
                 connection.Open();
@@ -123,9 +126,10 @@ namespace Convex.Resource {
                     getMessages.CommandText = "SELECT * FROM messages";
 
                     using (SqliteDataReader messages = getMessages.ExecuteReader()) {
-                        while (messages.Read())
-                            Users.SingleOrDefault(e => e.Id.Equals(Convert.ToInt32(messages["id"])))
-                                ?.Messages.Add(new Message((int)messages["id"], (string)messages["sender"], (string)messages["message"], DateTime.Parse((string)messages["datetime"])));
+                        while (messages.Read()) {
+                            Users.SingleOrDefault(e => e.Id.Equals(Convert.ToInt32(messages["id"])))?.
+                                Messages.Add(new Message((int)messages["id"], (string)messages["sender"], (string)messages["message"], DateTime.Parse((string)messages["datetime"])));
+                        }
                     }
 
                     transaction.Commit();
@@ -162,26 +166,28 @@ namespace Convex.Resource {
         internal async Task CreateUserAsync(int access, string nickname, string realname, DateTime seen) {
             Debug.WriteLine($"Creating database entry for {realname}.");
 
-            await GetConnection(FilePath)
-                .QueryAsync(new BasicEventArgs($"INSERT INTO users VALUES ({GetLastDatabaseId() + 1}, '{nickname}', '{realname}', {access}, '{seen}')"));
+            await GetConnection(FilePath).
+                QueryAsync(new BasicEventArgs($"INSERT INTO users VALUES ({GetLastDatabaseId() + 1}, '{nickname}', '{realname}', {access}, '{seen}')"));
         }
 
         internal void CreateUser(int access, string nickname, string realname, DateTime seen) {
             Debug.WriteLine($"Creating database entry for {realname}.");
 
-            GetConnection(FilePath)
-                .Query(new BasicEventArgs($"INSERT INTO users VALUES ({GetLastDatabaseId() + 1}, '{nickname}', '{realname}', {access}, '{seen}')"));
+            GetConnection(FilePath).
+                Query(new BasicEventArgs($"INSERT INTO users VALUES ({GetLastDatabaseId() + 1}, '{nickname}', '{realname}', {access}, '{seen}')"));
         }
 
         #region user automation
 
         private void UserAdded(object source, NotifyCollectionChangedEventArgs e) {
-            if (!e.Action.Equals(NotifyCollectionChangedAction.Add))
+            if (!e.Action.Equals(NotifyCollectionChangedAction.Add)) {
                 return;
+            }
 
             foreach (object item in e.NewItems) {
-                if (!(item is User))
+                if (!(item is User)) {
                     continue;
+                }
 
                 if (!UserExists(((User)item).Realname)) {
                     User newUser = (User)item;
@@ -194,28 +200,31 @@ namespace Convex.Resource {
         }
 
         private void MessageAdded(object source, NotifyCollectionChangedEventArgs e) {
-            if (!e.Action.Equals(NotifyCollectionChangedAction.Add))
+            if (!e.Action.Equals(NotifyCollectionChangedAction.Add)) {
                 return;
+            }
 
             foreach (object item in e.NewItems) {
-                if (!(item is Message))
+                if (!(item is Message)) {
                     continue;
+                }
 
                 Message message = (Message)item;
 
-                GetConnection(FilePath)
-                    .Query(new BasicEventArgs($"INSERT INTO messages VALUES ({message.Id}, '{message.Sender}', '{message.Contents}', '{message.Date}')"));
+                GetConnection(FilePath).
+                    Query(new BasicEventArgs($"INSERT INTO messages VALUES ({message.Id}, '{message.Sender}', '{message.Contents}', '{message.Date}')"));
             }
         }
 
         private void AutoUpdateUsers(object source, PropertyChangedEventArgs e) {
-            if (!(e is UserPropertyChangedEventArgs))
+            if (!(e is UserPropertyChangedEventArgs)) {
                 return;
+            }
 
             UserPropertyChangedEventArgs castedArgs = (UserPropertyChangedEventArgs)e;
 
-            GetConnection(FilePath)
-                .Query(new BasicEventArgs($"UPDATE users SET {castedArgs.PropertyName}='{castedArgs.NewValue}' WHERE realname='{castedArgs.Name}'"));
+            GetConnection(FilePath).
+                Query(new BasicEventArgs($"UPDATE users SET {castedArgs.PropertyName}='{castedArgs.NewValue}' WHERE realname='{castedArgs.Name}'"));
         }
 
         #endregion

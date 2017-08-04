@@ -12,6 +12,6 @@ namespace Convex.Plugin.Registrar {
         Func<T, Task> Method { get; }
         KeyValuePair<string, string> Description { get; }
         object Identifier { get; }
-        bool IsRegistered { get; }
+        bool IsRegistered { get; set; }
     }
 }

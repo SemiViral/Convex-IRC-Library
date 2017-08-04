@@ -86,14 +86,17 @@ namespace Convex.Resource {
         public bool GetTimeout() {
             bool doTimeout = false;
 
-            if (Attempts.Equals(4))
-                if (Seen.AddMinutes(1) < DateTime.UtcNow)
+            if (Attempts.Equals(4)) {
+                if (Seen.AddMinutes(1) < DateTime.UtcNow) {
                     Attempts = 0; // if so, reset their attempts to 0
-                else
+                } else {
                     doTimeout = true; // if not, timeout is true
-            else if (Access > 1)
+                }
+            } else if (Access > 1)
                 // if user isn't admin/op, increment their attempts
+            {
                 Attempts++;
+            }
 
             return doTimeout;
         }

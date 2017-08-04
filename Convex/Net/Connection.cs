@@ -53,8 +53,9 @@ namespace Convex.Net {
         }
 
         public async Task WriteAsync(string writable) {
-            if (writer.BaseStream == null)
+            if (writer.BaseStream == null) {
                 throw new NullReferenceException(nameof(writer.BaseStream));
+            }
 
             await writer.WriteLineAsync(writable);
             await writer.FlushAsync();
@@ -63,8 +64,9 @@ namespace Convex.Net {
         }
 
         public async Task<string> ReadAsync() {
-            if (reader.BaseStream == null)
+            if (reader.BaseStream == null) {
                 throw new NullReferenceException(nameof(reader.BaseStream));
+            }
 
             return await reader.ReadLineAsync();
         }
@@ -74,8 +76,9 @@ namespace Convex.Net {
         public event AsyncEventHandler<BasicEventArgs> Flushed;
 
         private async Task OnFlushed(object source, BasicEventArgs e) {
-            if (Flushed == null)
+            if (Flushed == null) {
                 return;
+            }
 
             await Flushed.Invoke(source, e);
         }

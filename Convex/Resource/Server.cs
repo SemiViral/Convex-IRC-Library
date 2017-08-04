@@ -27,8 +27,8 @@ namespace Convex.Resource {
 
         public List<Channel> Channels { get; }
 
-        public List<string> Inhabitants => Channels.SelectMany(e => e.Inhabitants)
-            .ToList();
+        public List<string> Inhabitants => Channels.SelectMany(e => e.Inhabitants).
+            ToList();
 
         #region dispose
 
@@ -54,8 +54,9 @@ namespace Convex.Resource {
             string rawData = await ListenAsync();
 
             if (string.IsNullOrEmpty(rawData) ||
-                await CheckPing(rawData))
+                await CheckPing(rawData)) {
                 return;
+            }
 
             await OnChannelMessaged(this, new ServerMessagedEventArgs(caller, new ServerMessage(rawData)));
         }
@@ -85,8 +86,9 @@ namespace Convex.Resource {
         /// <param name="rawData"></param>
         /// <returns></returns>
         private async Task<bool> CheckPing(string rawData) {
-            if (!rawData.StartsWith(Commands.PING))
+            if (!rawData.StartsWith(Commands.PING)) {
                 return false;
+            }
 
             await Connection.SendDataAsync(Commands.PONG, rawData.Remove(0, 5)); // removes 'PING ' from string
             return true;
@@ -99,8 +101,9 @@ namespace Convex.Resource {
         public event AsyncEventHandler<ServerMessagedEventArgs> ChannelMessaged;
 
         private async Task OnChannelMessaged(object source, ServerMessagedEventArgs e) {
-            if (ChannelMessaged == null)
+            if (ChannelMessaged == null) {
                 return;
+            }
 
             await ChannelMessaged.Invoke(source, e);
         }
@@ -122,17 +125,16 @@ namespace Convex.Resource {
         private async Task<bool> InitializeStream(int maxRetries = 3) {
             int retries = 0;
 
-            while (retries <= maxRetries)
+            while (retries <= maxRetries) {
                 try {
                     await Connection.ConnectAsync();
                     break;
                 } catch (Exception) {
-                    Console.WriteLine(retries <= maxRetries
-                        ? "Communication error, attempting to connect again..."
-                        : "Communication could not be established with address.\n");
+                    Console.WriteLine(retries <= maxRetries ? "Communication error, attempting to connect again..." : "Communication could not be established with address.\n");
 
                     retries++;
                 }
+            }
 
             return retries <= maxRetries;
         }
@@ -150,12 +152,13 @@ namespace Convex.Resource {
         #region channel methods
 
         private Task SortMessage(object source, ServerMessagedEventArgs e) {
-            if (GetChannel(e.Message.Origin) == null)
-                GetChannel(Connection.Address)
-                    .Messages.Add(e.Message);
-            else
-                GetChannel(e.Message.Origin)
-                    .Messages.Add(e.Message);
+            if (GetChannel(e.Message.Origin) == null) {
+                GetChannel(Connection.Address).
+                    Messages.Add(e.Message);
+            } else {
+                GetChannel(e.Message.Origin).
+                    Messages.Add(e.Message);
+            }
 
             return Task.CompletedTask;
         }

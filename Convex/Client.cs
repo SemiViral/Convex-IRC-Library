@@ -27,8 +27,9 @@ namespace Convex {
         ///     recieiving.
         /// </summary>
         public Client(string address, int port) {
-            if (!Directory.Exists(ClientConfiguration.DefaultResourceDirectory))
+            if (!Directory.Exists(ClientConfiguration.DefaultResourceDirectory)) {
                 Directory.CreateDirectory(ClientConfiguration.DefaultResourceDirectory);
+            }
 
             ClientConfiguration.CheckCreateConfig(ClientConfiguration.DefaultFilePath);
             ClientConfiguration = JsonConvert.DeserializeObject<ClientConfiguration>(File.ReadAllText(ClientConfiguration.DefaultFilePath));
@@ -45,29 +46,34 @@ namespace Convex {
         #region runtime
 
         private async Task Listen(object source, ServerMessagedEventArgs e) {
-            if (string.IsNullOrEmpty(e.Message.Command))
+            if (string.IsNullOrEmpty(e.Message.Command)) {
                 return;
+            }
 
             if (e.Message.Command.Equals(Commands.PRIVMSG)) {
                 if (e.Message.Origin.StartsWith("#") &&
-                    !Server.Channels.Any(channel => channel.Name.Equals(e.Message.Origin)))
+                    !Server.Channels.Any(channel => channel.Name.Equals(e.Message.Origin))) {
                     Server.Channels.Add(new Channel(e.Message.Origin));
+                }
 
-                if (GetUser(e.Message.Realname)
-                        ?.GetTimeout() ?? false)
+                if (GetUser(e.Message.Realname)?.
+                        GetTimeout() ?? false) {
                     return;
+                }
             } else if (e.Message.Command.Equals(Commands.ERROR)) {
                 Server.Executing = false;
                 return;
             }
 
             if (e.Message.Nickname.Equals(ClientConfiguration.Nickname) ||
-                ClientConfiguration.IgnoreList.Contains(e.Message.Realname))
+                ClientConfiguration.IgnoreList.Contains(e.Message.Realname)) {
                 return;
+            }
 
             if (e.Message.SplitArgs.Count >= 2 &&
-                e.Message.SplitArgs[0].Equals(ClientConfiguration.Nickname.ToLower()))
+                e.Message.SplitArgs[0].Equals(ClientConfiguration.Nickname.ToLower())) {
                 e.Message.InputCommand = e.Message.SplitArgs[1].ToLower();
+            }
 
             try {
                 await wrapper.Host.InvokeAsync(this, e);
@@ -90,9 +96,9 @@ namespace Convex {
 
         public string GetApiKey(string type) => ClientConfiguration.ApiKeys[type];
 
-        public Version Version => new AssemblyName(GetType()
-            .GetTypeInfo()
-            .Assembly.FullName).Version;
+        public Version Version => new AssemblyName(GetType().
+            GetTypeInfo().
+            Assembly.FullName).Version;
 
         #endregion
 
@@ -106,36 +112,41 @@ namespace Convex {
         public event AsyncEventHandler<BasicEventArgs> Log;
 
         private async Task OnQuery(object source, EventArgs e) {
-            if (Queried == null)
+            if (Queried == null) {
                 return;
+            }
 
             await Queried.Invoke(source, e);
         }
 
         private async Task OnTerminated(object source, EventArgs e) {
-            if (Terminated == null)
+            if (Terminated == null) {
                 return;
+            }
 
             await Terminated?.Invoke(source, e);
         }
 
         private async Task OnInitialized(object source, EventArgs e) {
-            if (Initialized == null)
+            if (Initialized == null) {
                 return;
+            }
 
             await Initialized.Invoke(source, e);
         }
 
         private async Task OnFailure(object source, BasicEventArgs e) {
-            if (Failure == null)
+            if (Failure == null) {
                 return;
+            }
 
             await Failure.Invoke(this, e);
         }
 
         private async Task OnLog(object source, BasicEventArgs e) {
-            if (Log == null)
+            if (Log == null) {
                 return;
+            }
 
             await Log.Invoke(this, e);
         }
@@ -152,8 +163,9 @@ namespace Convex {
         }
 
         private void Dispose(bool dispose) {
-            if (!dispose || disposed)
+            if (!dispose || disposed) {
                 return;
+            }
 
             Server?.Dispose();
             ClientConfiguration?.Dispose();
@@ -237,8 +249,8 @@ namespace Convex {
         /// <param name="command">comamnd name to be checked</param>
         /// <returns>True: exists; false: does not exist</returns>
         public bool CommandExists(string command) {
-            return !GetCommand(command)
-                .Equals(default(KeyValuePair<string, string>));
+            return !GetCommand(command).
+                Equals(default(KeyValuePair<string, string>));
         }
 
         #endregion

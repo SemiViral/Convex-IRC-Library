@@ -33,6 +33,6 @@ namespace Convex.Plugin.Registrar {
 
         public object Identifier { get; }
         public KeyValuePair<string, string> Description { get; }
-        public bool IsRegistered { get; }
+        public bool IsRegistered { get; set; }
     }
 }

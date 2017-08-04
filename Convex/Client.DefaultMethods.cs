@@ -16,29 +16,29 @@ namespace Convex {
         }
 
         private Task Join(ServerMessagedEventArgs e) {
-            Server.GetChannel(e.Message.Origin)
-                ?.Inhabitants.Add(e.Message.Nickname);
+            Server.GetChannel(e.Message.Origin)?.
+                Inhabitants.Add(e.Message.Nickname);
 
             return Task.CompletedTask;
         }
 
         private Task Part(ServerMessagedEventArgs e) {
-            Server.GetChannel(e.Message.Origin)
-                ?.Inhabitants.RemoveAll(x => x.Equals(e.Message.Nickname));
+            Server.GetChannel(e.Message.Origin)?.
+                Inhabitants.RemoveAll(x => x.Equals(e.Message.Nickname));
 
             return Task.CompletedTask;
         }
 
         private Task ChannelTopic(ServerMessagedEventArgs e) {
-            Server.GetChannel(e.Message.SplitArgs[0])
-                .Topic = e.Message.Args.Substring(e.Message.Args.IndexOf(' ') + 2);
+            Server.GetChannel(e.Message.SplitArgs[0]).
+                Topic = e.Message.Args.Substring(e.Message.Args.IndexOf(' ') + 2);
 
             return Task.CompletedTask;
         }
 
         private Task NewTopic(ServerMessagedEventArgs e) {
-            Server.GetChannel(e.Message.Origin)
-                .Topic = e.Message.Args;
+            Server.GetChannel(e.Message.Origin).
+                Topic = e.Message.Args;
 
             return Task.CompletedTask;
         }
@@ -49,18 +49,20 @@ namespace Convex {
             // * SplitArgs [2] is always your nickname
 
             // in this case, Eve is the only one in the channel
-            if (e.Message.SplitArgs.Count < 4)
+            if (e.Message.SplitArgs.Count < 4) {
                 return Task.CompletedTask;
+            }
 
             foreach (string s in e.Message.SplitArgs[3].Split(' ')) {
                 Channel currentChannel = Server.Channels.SingleOrDefault(channel => channel.Name.Equals(channelName));
 
                 if (currentChannel == null ||
-                    currentChannel.Inhabitants.Contains(s))
+                    currentChannel.Inhabitants.Contains(s)) {
                     continue;
+                }
 
-                Server?.Channels.Single(channel => channel.Name.Equals(channelName))
-                    .Inhabitants.Add(s);
+                Server?.Channels.Single(channel => channel.Name.Equals(channelName)).
+                    Inhabitants.Add(s);
             }
 
             return Task.CompletedTask;

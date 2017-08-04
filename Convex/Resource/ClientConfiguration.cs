@@ -23,20 +23,12 @@ namespace Convex.Resource {
         public string Password { get; set; }
 
         public string LogFilePath {
-            get {
-                return string.IsNullOrEmpty(logFilePath)
-                    ? DefaultLogFilePath
-                    : logFilePath;
-            }
+            get { return string.IsNullOrEmpty(logFilePath) ? DefaultLogFilePath : logFilePath; }
             set { logFilePath = value; }
         }
 
         public string DatabaseFilePath {
-            get {
-                return string.IsNullOrEmpty(databaseFilePath)
-                    ? DefualtDatabaseFilePath
-                    : databaseFilePath;
-            }
+            get { return string.IsNullOrEmpty(databaseFilePath) ? DefualtDatabaseFilePath : databaseFilePath; }
             set { databaseFilePath = value; }
         }
 
@@ -54,8 +46,9 @@ namespace Convex.Resource {
         }
 
         public static void CheckCreateConfig(string path) {
-            if (File.Exists(path))
+            if (File.Exists(path)) {
                 return;
+            }
 
             Console.WriteLine("Configuration file not found, creating.\n");
 
@@ -63,12 +56,11 @@ namespace Convex.Resource {
         }
 
         protected virtual void Dispose(bool dispose) {
-            if (!dispose || disposed)
+            if (!dispose || disposed) {
                 return;
+            }
 
-            WriteConfig(JsonConvert.SerializeObject(this), string.IsNullOrEmpty(FilePath)
-                ? DefaultFilePath
-                : FilePath);
+            WriteConfig(JsonConvert.SerializeObject(this), string.IsNullOrEmpty(FilePath) ? DefaultFilePath : FilePath);
 
             disposed = true;
         }

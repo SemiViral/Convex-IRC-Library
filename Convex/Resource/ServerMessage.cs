@@ -48,21 +48,24 @@ namespace Convex.Resource {
         ///     For parsing IRCv3 message tags
         /// </summary>
         private void ParseTagsPrefix() {
-            if (!RawMessage.StartsWith("@"))
+            if (!RawMessage.StartsWith("@")) {
                 return;
+            }
 
             IsIRCv3Message = true;
 
             string fullTagsPrefix = RawMessage.Substring(0, RawMessage.IndexOf(' '));
             string[] primitiveTagsCollection = RawMessage.Split(';');
 
-            foreach (string[] splitPrimitiveTag in primitiveTagsCollection.Select(primitiveTag => primitiveTag.Split('=')))
+            foreach (string[] splitPrimitiveTag in primitiveTagsCollection.Select(primitiveTag => primitiveTag.Split('='))) {
                 Tags.Add(splitPrimitiveTag[0], splitPrimitiveTag[1] ?? string.Empty);
+            }
         }
 
         public void Parse() {
-            if (!_messageRegex.IsMatch(RawMessage))
+            if (!_messageRegex.IsMatch(RawMessage)) {
                 return;
+            }
 
             ParseTagsPrefix();
 
@@ -77,25 +80,22 @@ namespace Convex.Resource {
             Realname = mVal.Groups["Sender"].Value.ToLower();
             Hostname = mVal.Groups["Sender"].Value;
             Command = mVal.Groups["Type"].Value;
-            Origin = mVal.Groups["Recipient"].Value.StartsWith(":")
-                ? mVal.Groups["Recipient"].Value.Substring(1)
-                : mVal.Groups["Recipient"].Value;
+            Origin = mVal.Groups["Recipient"].Value.StartsWith(":") ? mVal.Groups["Recipient"].Value.Substring(1) : mVal.Groups["Recipient"].Value;
 
             Args = mVal.Groups["Args"].Value.DeliminateSpaces();
 
             // splits the first 5 sections of the message for parsing
-            SplitArgs = Args.Split(new[] {' '}, 4)
-                .Select(arg => arg.Trim())
-                .ToList();
+            SplitArgs = Args.Split(new[] {' '}, 4).
+                Select(arg => arg.Trim()).
+                ToList();
 
-            if (!sMatch.Success)
+            if (!sMatch.Success) {
                 return;
+            }
 
             string realname = sMatch.Groups["Realname"].Value;
             Nickname = sMatch.Groups["Nickname"].Value;
-            Realname = realname.StartsWith("~")
-                ? realname.Substring(1)
-                : realname;
+            Realname = realname.StartsWith("~") ? realname.Substring(1) : realname;
             Hostname = sMatch.Groups["Hostname"].Value;
         }
     }
