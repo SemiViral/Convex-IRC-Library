@@ -4,7 +4,7 @@ using System;
 
 #endregion
 
-namespace Convex.Event {
+namespace Convex.ComponentModel.Event {
     public class BasicEventArgs : EventArgs {
         public BasicEventArgs(string contents) {
             Contents = contents;

@@ -7,15 +7,18 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 	ProjectSection(SolutionItems) = preProject
 		.gitignore = .gitignore
 		CHANGELOG.md = CHANGELOG.md
+		Convex.Example\bin\Debug\netcoreapp1.1\Resources\config.json = Convex.Example\bin\Debug\netcoreapp1.1\Resources\config.json
 		Convex\obj\project.assets.json = Convex\obj\project.assets.json
 		README.md = README.md
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Convex", "Convex\Convex.csproj", "{1178458F-984E-4C55-8A06-117F346B068A}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Convex", "Convex\Convex.csproj", "{1178458F-984E-4C55-8A06-117F346B068A}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Convex.Example", "Convex.Example\Convex.Example.csproj", "{B75B9E9B-F7E0-472A-A3D6-B443E5267907}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Convex.Plugin.Core", "Convex.Plugin.Core\Convex.Plugin.Core.csproj", "{35708A19-69E0-4459-895D-126CA56BB99D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Convex.REST", "Convex.REST\Convex.REST.csproj", "{B069CF41-07F9-44EF-8024-986500D88FB5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -35,8 +38,15 @@ Global
 		{35708A19-69E0-4459-895D-126CA56BB99D}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{35708A19-69E0-4459-895D-126CA56BB99D}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{35708A19-69E0-4459-895D-126CA56BB99D}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B069CF41-07F9-44EF-8024-986500D88FB5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B069CF41-07F9-44EF-8024-986500D88FB5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B069CF41-07F9-44EF-8024-986500D88FB5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B069CF41-07F9-44EF-8024-986500D88FB5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E41E0AA4-463E-487E-90CF-59EDFE200F63}
 	EndGlobalSection
 EndGlobal

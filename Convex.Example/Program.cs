@@ -6,20 +6,20 @@ using System.Threading.Tasks;
 #endregion
 
 namespace Convex.Example {
-    internal class Program {
-        private static IrcBot bot;
+    internal static class Program {
+        private static IrcBot _bot;
 
         private static async Task DebugRun() {
             do {
-                await bot.Execute();
-            } while (bot.Executing);
+                await _bot.Execute();
+            } while (_bot.Executing);
 
-            bot.Dispose();
+            _bot.Dispose();
         }
 
         private static async Task InitialiseAndExecute() {
-            using (bot = new IrcBot()) {
-                await bot.Initialise();
+            using (_bot = new IrcBot()) {
+                await _bot.Initialise();
                 await DebugRun();
             }
         }

@@ -1,24 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFramework>netstandard1.6</TargetFramework>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>Convex.Plugin.Core</AssemblyName>
     <RootNamespace>Convex.Plugin</RootNamespace>
     <Authors>SemiViral</Authors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
-    <OutputPath>C:\Users\semiv\OneDrive\Documents\GitHub\Convex-IRC-Library\Convex.Example\bin\Debug\netcoreapp1.1\Plugins\</OutputPath>
+    <OutputPath></OutputPath>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Convex\Convex.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="NeuralNetwork">
-      <HintPath>..\..\NeuralNetwork\NeuralNetTest\bin\Debug\netstandard1.4\NeuralNetwork.dll</HintPath>
-    </Reference>
   </ItemGroup>
 
 </Project>

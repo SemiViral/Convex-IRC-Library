@@ -6,51 +6,53 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
-using Convex.Event;
-using Convex.Net;
+using Convex.ComponentModel.Event;
+using Convex.ComponentModel.Reference;
+using Convex.Model;
+using Convex.Model.Config;
+using Convex.Model.Net;
 using Convex.Plugin;
-using Convex.Resource;
-using Convex.Resource.Reference;
+using Convex.Plugin.Registrar;
 using Newtonsoft.Json;
 
 #endregion
 
 namespace Convex {
     public sealed partial class Client : IDisposable {
-        private readonly string friendlyName;
-        private readonly PluginWrapper wrapper;
+        private readonly string _friendlyName;
+        private readonly PluginWrapper _wrapper;
 
-        private bool disposed;
+        private bool _disposed;
 
         /// <summary>
         ///     Initialises class. No connections are made at init of class, so call `Initialise()` to begin sending and
         ///     recieiving.
         /// </summary>
         public Client(string address, int port, string friendlyName = "") {
-            if (!Directory.Exists(ClientConfiguration.DefaultResourceDirectory))
-                Directory.CreateDirectory(ClientConfiguration.DefaultResourceDirectory);
+            if (!Directory.Exists(Configuration.DefaultResourceDirectory))
+                Directory.CreateDirectory(Configuration.DefaultResourceDirectory);
 
-            ClientConfiguration.CheckCreateConfig(ClientConfiguration.DefaultFilePath);
-            ClientConfiguration = JsonConvert.DeserializeObject<ClientConfiguration>(File.ReadAllText(ClientConfiguration.DefaultFilePath));
+            Configuration.CheckCreateConfig(Configuration.DefaultFilePath);
+            ClientConfiguration = JsonConvert.DeserializeObject<Configuration>(File.ReadAllText(Configuration.DefaultFilePath));
 
-            wrapper = new PluginWrapper();
+            _wrapper = new PluginWrapper();
             MainDatabase = new Database(ClientConfiguration.DatabaseFilePath);
 
             Connection conn = new Connection(address, port);
             Server = new Server(conn);
 
-            this.friendlyName = friendlyName;
+            _friendlyName = friendlyName;
         }
 
-        public ClientConfiguration ClientConfiguration { get; }
+        public Configuration ClientConfiguration { get; }
 
         /// <summary>
         ///     Returns a specified command from commands list
         /// </summary>
         /// <param name="command">Command to be returned</param>
         /// <returns></returns>
-        public KeyValuePair<string, string> GetCommand(string command) {
-            return wrapper.Host.Commands.SingleOrDefault(x => x.Key.Equals(command));
+        public Tuple<string, string> GetCommand(string command) {
+            return _wrapper.Host.DescriptionRegistry.Values.SingleOrDefault(x => x != null && x.Item1.Equals(command, StringComparison.CurrentCultureIgnoreCase));
         }
 
         /// <summary>
@@ -59,38 +61,34 @@ namespace Convex {
         /// <param name="command">comamnd name to be checked</param>
         /// <returns>True: exists; false: does not exist</returns>
         public bool CommandExists(string command) {
-            return wrapper.Host.Commands.Keys.Contains(command);
+            return !GetCommand(command).Equals(default(Tuple<string, string>));
         }
 
-        #region runtime
+        #region RUNTIME
 
         private async Task Listen(object source, ServerMessagedEventArgs e) {
             if (string.IsNullOrEmpty(e.Message.Command))
                 return;
 
             if (e.Message.Command.Equals(Commands.PRIVMSG)) {
-                if (e.Message.Origin.StartsWith("#") &&
-                    !Server.Channels.Any(channel => channel.Name.Equals(e.Message.Origin)))
+                if (e.Message.Origin.StartsWith("#") && !Server.Channels.Any(channel => channel.Name.Equals(e.Message.Origin)))
                     Server.Channels.Add(new Channel(e.Message.Origin));
 
-                if (GetUser(e.Message.Realname)
-                        ?.GetTimeout() ?? false)
+                if (GetUser(e.Message.Realname)?.GetTimeout() ?? false)
                     return;
             } else if (e.Message.Command.Equals(Commands.ERROR)) {
                 Server.Executing = false;
                 return;
             }
 
-            if (e.Message.Nickname.Equals(ClientConfiguration.Nickname) ||
-                ClientConfiguration.IgnoreList.Contains(e.Message.Realname))
+            if (e.Message.Nickname.Equals(ClientConfiguration.Nickname) || ClientConfiguration.IgnoreList.Contains(e.Message.Realname))
                 return;
 
-            if (e.Message.SplitArgs.Count >= 2 &&
-                e.Message.SplitArgs[0].Equals(ClientConfiguration.Nickname.ToLower()))
+            if (e.Message.SplitArgs.Count >= 2 && e.Message.SplitArgs[0].Equals(ClientConfiguration.Nickname.ToLower()))
                 e.Message.InputCommand = e.Message.SplitArgs[1].ToLower();
 
             try {
-                await wrapper.Host.InvokeAsync(e);
+                await _wrapper.Host.InvokeAsync(e);
             } catch (Exception ex) {
                 await OnFailure(this, new BasicEventArgs(ex.ToString()));
             }
@@ -98,29 +96,27 @@ namespace Convex {
 
         #endregion
 
-        #region variables
+        #region MEMBERS
 
         private Database MainDatabase { get; }
 
         public Server Server { get; }
 
-        public Dictionary<string, string> LoadedCommands => wrapper.Host.Commands;
+        public Dictionary<string, Tuple<string, string>> LoadedCommands => _wrapper.Host.DescriptionRegistry;
 
         public List<string> IgnoreList => ClientConfiguration.IgnoreList;
 
-        public string GetApiKey(string type) => ClientConfiguration.ApiKeys[type];
+        public string GetApiKey(string type) {
+            return ClientConfiguration.ApiKeys[type];
+        }
 
-        public Version Version => new AssemblyName(GetType()
-            .GetTypeInfo()
-            .Assembly.FullName).Version;
+        public Version Version => new AssemblyName(GetType().GetTypeInfo().Assembly.FullName).Version;
 
-        public string FriendlyName => string.IsNullOrWhiteSpace(friendlyName)
-            ? Server.Connection.Address
-            : friendlyName;
+        public string FriendlyName => string.IsNullOrWhiteSpace(_friendlyName) ? Server.Connection.Address : _friendlyName;
 
         #endregion
 
-        #region events
+        #region EVENTS
 
         public event AsyncEventHandler Queried;
         public event AsyncEventHandler Terminated;
@@ -166,7 +162,7 @@ namespace Convex {
 
         #endregion
 
-        #region disposing
+        #region DISPOSE
 
         /// <summary>
         ///     Dispose of all streams and objects
@@ -176,34 +172,34 @@ namespace Convex {
         }
 
         private void Dispose(bool dispose) {
-            if (!dispose || disposed)
+            if (!dispose || _disposed)
                 return;
 
             Server?.Dispose();
             ClientConfiguration?.Dispose();
 
-            disposed = true;
+            _disposed = true;
         }
 
         private async Task SignalTerminate(object source, EventArgs e) {
             await OnTerminated(source, e);
 
-            wrapper.Host.StopPlugins();
+            _wrapper.Host.StopPlugins();
 
             Dispose();
         }
 
         #endregion
 
-        #region init
+        #region INIT
 
         public async Task<bool> Initialise() {
             await MainDatabase.Initialise();
 
-            wrapper.Initialise();
-            wrapper.Log += OnLog;
-            wrapper.Terminated += SignalTerminate;
-            wrapper.CommandRecieved += Server.Connection.SendDataAsync;
+            _wrapper.Initialise();
+            _wrapper.Log += OnLog;
+            _wrapper.Terminated += SignalTerminate;
+            _wrapper.CommandRecieved += Server.Connection.SendDataAsync;
             RegisterMethods();
 
             await Server.Initialise();
@@ -219,32 +215,91 @@ namespace Convex {
         ///     Register all methods
         /// </summary>
         private void RegisterMethods() {
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.NICK, Nick));
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.JOIN, Join));
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.PART, Part));
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.CHANNEL_TOPIC, ChannelTopic));
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.TOPIC, NewTopic));
-            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.NAMES_REPLY, NamesReply));
+            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Nick, null, Commands.NICK, null));
+            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Join, null, Commands.JOIN, null));
+            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Part, null, Commands.PART, null));
+            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(ChannelTopic, null, Commands.CHANNEL_TOPIC, null));
+            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(NewTopic, null, Commands.TOPIC, null));
+            RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(NamesReply, null, Commands.NAMES_REPLY, null));
         }
 
-        public void RegisterMethod(MethodRegistrar<ServerMessagedEventArgs> methodRegistrar) {
-            wrapper.Host.RegisterMethod(methodRegistrar);
+        public void RegisterMethod(IAsyncRegistrar<ServerMessagedEventArgs> methodRegistrar) {
+            _wrapper.Host.RegisterMethod(methodRegistrar);
         }
 
         #endregion
 
-        #region general methods
+        #region METHODS
 
-        public IEnumerable<User> GetAllUsers() => MainDatabase.Users;
+        public IEnumerable<User> GetAllUsers() {
+            return MainDatabase.Users;
+        }
 
         /// <summary>
         ///     Gets the user entry by their realname
         ///     note: will return null if user does not exist
         /// </summary>
         /// <param name="realname">realname of user</param>
-        public User GetUser(string realname) => MainDatabase.Users.SingleOrDefault(user => user.Realname.Equals(realname));
+        public User GetUser(string realname) {
+            return MainDatabase.Users.SingleOrDefault(user => user.Realname.Equals(realname));
+        }
 
-        public bool UserExists(string userName) => MainDatabase.Users.Any(user => user.Realname.Equals(userName));
+        public bool UserExists(string userName) {
+            return MainDatabase.Users.Any(user => user.Realname.Equals(userName));
+        }
+
+        #endregion
+
+        #region REGISTRABLE METHODS
+
+        private async Task Nick(ServerMessagedEventArgs e) {
+            await OnQuery(this, new BasicEventArgs($"UPDATE users SET nickname='{e.Message.Origin}' WHERE realname='{e.Message.Realname}'"));
+        }
+
+        private Task Join(ServerMessagedEventArgs e) {
+            Server.GetChannel(e.Message.Origin)?.Inhabitants.Add(e.Message.Nickname);
+
+            return Task.CompletedTask;
+        }
+
+        private Task Part(ServerMessagedEventArgs e) {
+            Server.GetChannel(e.Message.Origin)?.Inhabitants.RemoveAll(x => x.Equals(e.Message.Nickname));
+
+            return Task.CompletedTask;
+        }
+
+        private Task ChannelTopic(ServerMessagedEventArgs e) {
+            Server.GetChannel(e.Message.SplitArgs[0]).Topic = e.Message.Args.Substring(e.Message.Args.IndexOf(' ') + 2);
+
+            return Task.CompletedTask;
+        }
+
+        private Task NewTopic(ServerMessagedEventArgs e) {
+            Server.GetChannel(e.Message.Origin).Topic = e.Message.Args;
+
+            return Task.CompletedTask;
+        }
+
+        private Task NamesReply(ServerMessagedEventArgs e) {
+            string channelName = e.Message.SplitArgs[1];
+
+            // * SplitArgs [2] is always your nickname
+
+            // in this case, Eve is the only one in the channel
+            if (e.Message.SplitArgs.Count < 4)
+                return Task.CompletedTask;
+
+            foreach (string s in e.Message.SplitArgs[3].Split(' ')) {
+                Channel currentChannel = Server.Channels.SingleOrDefault(channel => channel.Name.Equals(channelName));
+
+                if (currentChannel == null || currentChannel.Inhabitants.Contains(s))
+                    continue;
+
+                Server?.Channels.Single(channel => channel.Name.Equals(channelName)).Inhabitants.Add(s);
+            }
+
+            return Task.CompletedTask;
+        }
 
         #endregion
     }

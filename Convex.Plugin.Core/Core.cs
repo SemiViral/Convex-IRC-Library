@@ -7,18 +7,20 @@ using System.Linq;
 using System.Reflection;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
-using Convex.Event;
+using Convex.ComponentModel;
+using Convex.ComponentModel.Event;
+using Convex.ComponentModel.Reference;
+using Convex.Model;
 using Convex.Plugin.Calculator;
-using Convex.Resource;
-using Convex.Resource.Reference;
+using Convex.Plugin.Registrar;
 using Newtonsoft.Json.Linq;
 
 #endregion
 
 namespace Convex.Plugin {
     public class Core : IPlugin {
-        private readonly InlineCalculator calculator = new InlineCalculator();
-        private readonly Regex youtubeRegex = new Regex(@"(?i)http(?:s?)://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)(?<ID>[\w\-]+)(&(amp;)?[\w\?=‌​]*)?", RegexOptions.Compiled);
+        private readonly InlineCalculator _calculator = new InlineCalculator();
+        private readonly Regex _youtubeRegex = new Regex(@"(?i)http(?:s?)://(?:www\.)?youtu(?:be\.com/watch\?v=|\.be/)(?<ID>[\w\-]+)(&(amp;)?[\w\?=‌​]*)?", RegexOptions.Compiled);
 
         public string Name => "Core";
         public string Author => "SemiViral";
@@ -35,27 +37,27 @@ namespace Convex.Plugin {
         public event AsyncEventHandler<ActionEventArgs> Callback;
 
         public async Task Start() {
-            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.MOTD_REPLY_END, MotdReplyEnd)));
+            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(MotdReplyEnd, null, Commands.MOTD_REPLY_END, null)));
 
-            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, Default)));
+            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Default, null, Commands.PRIVMSG, null)));
 
-            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, YouTubeLinkResponse, e => youtubeRegex.IsMatch(e.Message.Args))));
+            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(YouTubeLinkResponse, e => _youtubeRegex.IsMatch(e.Message.Args), Commands.PRIVMSG, null)));
 
-            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, Quit, e => e.InputEquals("quit"), new KeyValuePair<string, string>("quit", "terminates bot execution"))));
+            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Quit, e => e.InputEquals("quit"), Commands.PRIVMSG, new Tuple<string, string>(nameof(Quit), "terminates bot execution"))));
 
-            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, Eval, e => e.InputEquals("eval"), new KeyValuePair<string, string>("eval", "(<expression>) — evaluates given mathematical expression."))));
+            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Eval, e => e.InputEquals("eval"), Commands.PRIVMSG, new Tuple<string, string>(nameof(Eval), "(<expression>) — evaluates given mathematical expression."))));
 
-            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, Join, e => e.InputEquals("join"), new KeyValuePair<string, string>("join", "(<channel> *<message>) — joins specified channel."))));
+            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Join, e => e.InputEquals("join"), Commands.PRIVMSG, new Tuple<string, string>(nameof(Join), "(< channel> *<message>) — joins specified channel."))));
 
-            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, Part, e => e.InputEquals("part"), new KeyValuePair<string, string>("part", "(<channel> *<message>) — parts from specified channel."))));
+            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Part, e => e.InputEquals("part"), Commands.PRIVMSG, new Tuple<string, string>(nameof(Part), "(< channel> *<message>) — parts from specified channel."))));
 
-            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, ListChannels, e => e.InputEquals("channels"), new KeyValuePair<string, string>("channels", "returns a list of connected channels."))));
+            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Channels, e => e.InputEquals("channels"), Commands.PRIVMSG, new Tuple<string, string>(nameof(Channels), "returns a list of connected channels."))));
 
-            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, Define, e => e.InputEquals("define"), new KeyValuePair<string, string>("define", "(<word> *<part of speech>) — returns definition for given word."))));
+            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Define, e => e.InputEquals("define"), Commands.PRIVMSG, new Tuple<string, string>(nameof(Define), "(< word> *<part of speech>) — returns definition for given word."))));
 
-            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, Lookup, e => e.InputEquals("lookup"), new KeyValuePair<string, string>("lookup", "(<term/phrase>) — returns the wikipedia summary of given term or phrase."))));
+            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Lookup, e => e.InputEquals("lookup"), Commands.PRIVMSG, new Tuple<string, string>(nameof(Lookup), "(<term/phrase>) — returns the wikipedia summary of given term or phrase."))));
 
-            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, ListUsers, e => e.InputEquals("users"), new KeyValuePair<string, string>("users", "returns a list of stored user realnames."))));
+            await DoCallback(this, new ActionEventArgs(PluginActionType.RegisterMethod, new MethodRegistrar<ServerMessagedEventArgs>(Users, e => e.InputEquals("users"), Commands.PRIVMSG, new Tuple<string, string>(nameof(Users), "returns a list of stored user realnames."))));
 
             await Log($"{Name} loaded.");
         }
@@ -120,19 +122,21 @@ namespace Convex.Plugin {
             if (e.Message.SplitArgs[1].ToLower()
                 .Equals("help")) {
                 if (e.Message.SplitArgs.Count.Equals(2)) { // in this case, 'help' is the only text in the string.
-                    Dictionary<string, string> commands = e.Caller.LoadedCommands;
+                    List<Tuple<string, string>> entries = e.Caller.LoadedCommands.Values.ToList();
+                    string commandsReadable = string.Join(", ", entries.Where(entry => entry != null)
+                        .Select(entry => entry.Item1));
 
-                    await e.Caller.Server.Connection.SendDataAsync(Commands.PRIVMSG, commands.Count.Equals(0)
+                    await e.Caller.Server.Connection.SendDataAsync(Commands.PRIVMSG, entries.Count == 0
                         ? $"{e.Message.Origin} No commands currently active."
-                        : $"{e.Message.Origin} Active commands: {string.Join(", ", e.Caller.LoadedCommands.Keys)}");
+                        : $"{e.Message.Origin} Active commands: {commandsReadable}");
                     return;
                 }
 
-                KeyValuePair<string, string> queriedCommand = e.Caller.GetCommand(e.Message.SplitArgs[2]);
+                Tuple<string, string> queriedCommand = e.Caller.GetCommand(e.Message.SplitArgs[2]);
 
-                string valueToSend = queriedCommand.Equals(default(KeyValuePair<string, string>))
+                string valueToSend = queriedCommand.Equals(null)
                     ? "Command not found."
-                    : $"{queriedCommand.Key}: {queriedCommand.Value}";
+                    : $"{queriedCommand.Item1}: {queriedCommand.Item2}";
 
                 await e.Caller.Server.Connection.SendDataAsync(Commands.PRIVMSG, $"{e.Message.Origin} {valueToSend}");
 
@@ -171,7 +175,7 @@ namespace Convex.Plugin {
                     : e.Message.SplitArgs[2];
 
                 try {
-                    message.Contents = calculator.Evaluate(evalArgs)
+                    message.Contents = _calculator.Evaluate(evalArgs)
                         .ToString(CultureInfo.CurrentCulture);
                 } catch (Exception ex) {
                     message.Contents = ex.Message;
@@ -227,7 +231,7 @@ namespace Convex.Plugin {
                      !e.Message.SplitArgs[2].StartsWith("#"))
                 message.Contents = "Channel parameter must be a proper name (starts with '#').";
             else if (e.Message.SplitArgs.Count < 2 ||
-                     e.Caller.Server.GetChannel(e.Message.SplitArgs[2]) != null)
+                     e.Caller.Server.GetChannel(e.Message.SplitArgs[2]) == null)
                 message.Contents = "I'm not in that channel.";
 
             Status = PluginStatus.Running;
@@ -249,9 +253,10 @@ namespace Convex.Plugin {
             Status = PluginStatus.Stopped;
         }
 
-        private async Task ListChannels(ServerMessagedEventArgs e) {
+        private async Task Channels(ServerMessagedEventArgs e) {
             Status = PluginStatus.Running;
-            await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, new CommandEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Join(", ", e.Caller.Server.Channels.Select(channel => channel.Name)))));
+            await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, new CommandEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Join(", ", e.Caller.Server.Channels.Where(channel => channel.Name.StartsWith("#"))
+                .Select(channel => channel.Name)))));
 
             Status = PluginStatus.Stopped;
         }
@@ -261,7 +266,7 @@ namespace Convex.Plugin {
 
             const int maxDescriptionLength = 100;
 
-            string getResponse = await $"https://www.googleapis.com/youtube/v3/videos?part=snippet&id={youtubeRegex.Match(e.Message.Args) .Groups["ID"]}&key={e.Caller.GetApiKey("YouTube")}".HttpGet();
+            string getResponse = await $"https://www.googleapis.com/youtube/v3/videos?part=snippet&id={_youtubeRegex.Match(e.Message.Args).Groups["ID"]}&key={e.Caller.GetApiKey("YouTube")}".HttpGet();
 
             JToken video = JObject.Parse(getResponse)["items"][0]["snippet"];
             string channel = (string)video["channelTitle"];
@@ -375,7 +380,7 @@ namespace Convex.Plugin {
 
             message.Target = e.Message.Nickname;
 
-            foreach (string splitMessage in fullReplyStr.SplitByLength(400)) {
+            foreach (string splitMessage in fullReplyStr.LengthSplit(400)) {
                 message.Contents = splitMessage;
                 await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, message));
             }
@@ -383,7 +388,7 @@ namespace Convex.Plugin {
             Status = PluginStatus.Stopped;
         }
 
-        private async Task ListUsers(ServerMessagedEventArgs e) {
+        private async Task Users(ServerMessagedEventArgs e) {
             Status = PluginStatus.Running;
 
             await DoCallback(this, new ActionEventArgs(PluginActionType.SendMessage, new CommandEventArgs(Commands.PRIVMSG, e.Message.Origin, string.Join(", ", e.Caller.GetAllUsers()))));

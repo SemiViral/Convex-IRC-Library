@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>exe</OutputType>
-    <TargetFramework>netcoreapp1.1</TargetFramework>
+    <TargetFramework>netcoreapp2.0</TargetFramework>
     <ApplicationIcon />
     <OutputTypeEx>exe</OutputTypeEx>
     <StartupObject />
@@ -17,12 +17,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Convex\Convex.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Reference Include="NeuralNetwork">
-      <HintPath>..\..\NeuralNetwork\NeuralNetTest\bin\Debug\netstandard1.4\NeuralNetwork.dll</HintPath>
-    </Reference>
   </ItemGroup>
 
 </Project>

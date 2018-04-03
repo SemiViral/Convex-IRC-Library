@@ -5,13 +5,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading.Tasks;
-using Convex.Event;
-using Convex.Net;
-using Convex.Resource.Reference;
+using Convex.ComponentModel.Event;
+using Convex.ComponentModel.Reference;
+using Convex.Model.Net;
 
 #endregion
 
-namespace Convex.Resource {
+namespace Convex.Model {
     public class Server : IDisposable {
         public Server(Connection connection) {
             Channels = new List<Channel>();
@@ -114,7 +114,6 @@ namespace Convex.Resource {
             ChannelMessaged += SortMessage;
 
             Initialised = await InitializeStream();
-            Initialised = true;
         }
 
         /// <summary>
@@ -162,7 +161,7 @@ namespace Convex.Resource {
         }
 
         public Channel GetChannel(string name) {
-            return Channels.Single(channel => channel.Name.Equals(name));
+            return Channels.SingleOrDefault(channel => channel.Name.Equals(name));
         }
 
         public int RemoveChannel(string name) => Channels.RemoveAll(channel => channel.Name.Equals(name));

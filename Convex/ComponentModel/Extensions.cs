@@ -6,12 +6,12 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
-using Convex.Event;
+using Convex.ComponentModel.Event;
 using Microsoft.Data.Sqlite;
 
 #endregion
 
-namespace Convex.Resource {
+namespace Convex.ComponentModel {
     public static class Extensions {
         /// <summary>
         ///     Obtain HTTP response from a GET request
@@ -38,16 +38,21 @@ namespace Convex.Resource {
         /// </summary>
         /// <param name="instance"></param>
         /// <param name="maxLength">max length of individual strings to split</param>
-        public static IEnumerable<string> SplitByLength(this string instance, int maxLength) {
+        public static IEnumerable<string> LengthSplit(this string instance, int maxLength) {
             for (int i = 0; i < instance.Length; i += maxLength)
                 yield return instance.Substring(i, Math.Min(maxLength, instance.Length - i));
         }
 
+        /// <summary>
+        /// Removes run-on spaces in a string
+        /// </summary>
+        /// <param name="str"></param>
+        /// <returns></returns>
         public static string DeliminateSpaces(this string str) {
             StringBuilder deliminatedSpaces = new StringBuilder();
             bool isSpace = false;
 
-            // using for loop to increase speed
+            // using for loop to increased cycle speed
             for (int i = 0; i < str.Length; i++) {
                 if (str[i].Equals(' ')) {
                     if (isSpace)

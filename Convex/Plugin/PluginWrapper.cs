@@ -2,7 +2,8 @@
 
 using System;
 using System.Threading.Tasks;
-using Convex.Event;
+using Convex.ComponentModel.Event;
+using Convex.Plugin.Registrar;
 
 #endregion
 
@@ -26,10 +27,10 @@ namespace Convex.Plugin {
                     await Terminated.Invoke(this, EventArgs.Empty);
                     break;
                 case PluginActionType.RegisterMethod:
-                    if (!(e.Result is MethodRegistrar<ServerMessagedEventArgs>))
+                    if (!(e.Result is IAsyncRegistrar<ServerMessagedEventArgs>))
                         break;
 
-                    Host.RegisterMethod((MethodRegistrar<ServerMessagedEventArgs>)e.Result);
+                    Host.RegisterMethod((IAsyncRegistrar<ServerMessagedEventArgs>)e.Result);
                     break;
                 case PluginActionType.SendMessage:
                     if (!(e.Result is CommandEventArgs) ||

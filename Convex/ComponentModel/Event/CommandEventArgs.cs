@@ -4,7 +4,7 @@
 
 #endregion
 
-namespace Convex.Event {
+namespace Convex.ComponentModel.Event {
     public class CommandEventArgs : BasicEventArgs {
         public CommandEventArgs(string command, string target, string contents) : base(contents) {
             Command = command;

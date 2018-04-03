@@ -44,17 +44,17 @@ namespace Convex.Plugin.Calculator {
                 SQRT = "sqrt",
                 ROOT = "rt";
 
-            private static readonly string[] _binaryOperators = {MULTIPLY, DIVIDE, SUBTRACT, ADD, POWER, LOG, ROOT, MOD};
+            private static readonly string[] _BinaryOperators = {MULTIPLY, DIVIDE, SUBTRACT, ADD, POWER, LOG, ROOT, MOD};
 
-            private static readonly string[] _unaryOperators = {SUBTRACT, SINE, COSINE, TANGENT, A_SINE, A_COSINE, A_TANGENT, LOG10, LN, EXP, ABS, SQRT};
+            private static readonly string[] _UnaryOperators = {SUBTRACT, SINE, COSINE, TANGENT, A_SINE, A_COSINE, A_TANGENT, LOG10, LN, EXP, ABS, SQRT};
 
-            private static readonly string[] _specialOperators = {SENTINEL, END, STORE, NONE, SEPERATOR, P_RIGHT};
+            private static readonly string[] _SpecialOperators = {SENTINEL, END, STORE, NONE, SEPERATOR, P_RIGHT};
 
-            private static readonly string[] _rightSideOperators = {FACTORIAL};
+            private static readonly string[] _RightSideOperators = {FACTORIAL};
 
-            private static readonly string[] _functionList = {SINE, COSINE, TANGENT, A_SINE, A_COSINE, A_TANGENT, LOG, LOG10, LN, EXP, ABS, SQRT, ROOT};
+            private static readonly string[] _FunctionList = {SINE, COSINE, TANGENT, A_SINE, A_COSINE, A_TANGENT, LOG, LOG10, LN, EXP, ABS, SQRT, ROOT};
 
-            private static readonly string[] _lastProcessedOperators = {POWER};
+            private static readonly string[] _LastProcessedOperators = {POWER};
 
             private static int Precedence(string op) {
                 if (IsFunction(op))
@@ -89,7 +89,7 @@ namespace Convex.Plugin.Calculator {
 
             public static int Compare(string op1, string op2) {
                 if (op1.Equals(op2) &&
-                    Contains(op1, _lastProcessedOperators))
+                    Contains(op1, _LastProcessedOperators))
                     return -1;
                 return Precedence(op1) >= Precedence(op2)
                     ? 1
@@ -121,23 +121,23 @@ namespace Convex.Plugin.Calculator {
             #region Is... Functions
 
             public static bool IsBinary(string op) {
-                return Contains(op, _binaryOperators);
+                return Contains(op, _BinaryOperators);
             }
 
             public static bool IsUnary(string op) {
-                return Contains(op, _unaryOperators);
+                return Contains(op, _UnaryOperators);
             }
 
             public static bool IsRightSide(string op) {
-                return Contains(op, _rightSideOperators);
+                return Contains(op, _RightSideOperators);
             }
 
             public static bool IsSpecial(string op) {
-                return Contains(op, _specialOperators);
+                return Contains(op, _SpecialOperators);
             }
 
             public static bool IsFunction(string op) {
-                return Contains(op, _functionList);
+                return Contains(op, _FunctionList);
             }
 
             public static bool IsName(string token) {

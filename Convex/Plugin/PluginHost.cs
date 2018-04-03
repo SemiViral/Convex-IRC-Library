@@ -8,26 +8,27 @@ using System.Linq;
 using System.Reflection;
 using System.Runtime.Loader;
 using System.Threading.Tasks;
-using Convex.Event;
+using Convex.ComponentModel.Event;
+using Convex.Plugin.Registrar;
 
 #endregion
 
 namespace Convex.Plugin {
     internal class PluginHost {
-        private const string PLUGIN_MASK = "Convex.*.dll";
-        private static readonly string pluginsDirectory = $"{AppContext.BaseDirectory}\\Plugins";
+        private const string _PluginMask = "Convex.*.dll";
+        private static readonly string _PluginsDirectory = $"{AppContext.BaseDirectory}\\Plugins";
 
-        private readonly List<MethodsContainer<ServerMessagedEventArgs>> methodContainers = new List<MethodsContainer<ServerMessagedEventArgs>>();
-        private readonly List<PluginInstance> plugins = new List<PluginInstance>();
+        private Dictionary<string, AsyncEventHandler<ServerMessagedEventArgs>> CompositionHandlers { get; } = new Dictionary<string, AsyncEventHandler<ServerMessagedEventArgs>>();
+        private List<PluginInstance> Plugins { get; } = new List<PluginInstance>();
 
         public bool ShuttingDown { get; private set; }
 
-        public Dictionary<string, string> Commands { get; } = new Dictionary<string, string>();
+        public Dictionary<string, Tuple<string, string>> DescriptionRegistry { get; } = new Dictionary<string, Tuple<string, string>>();
 
         public event AsyncEventHandler<ActionEventArgs> PluginCallback;
 
         public void StartPlugins() {
-            foreach (PluginInstance pluginInstance in plugins)
+            foreach (PluginInstance pluginInstance in Plugins)
                 pluginInstance.Instance.Start();
         }
 
@@ -35,48 +36,54 @@ namespace Convex.Plugin {
             Debug.WriteLine("STOP PLUGINS RECIEVED — shutting down.");
             ShuttingDown = true;
 
-            foreach (PluginInstance pluginInstance in plugins)
+            foreach (PluginInstance pluginInstance in Plugins)
                 pluginInstance.Instance.Stop();
         }
 
-        public async Task InvokeAsync(ServerMessagedEventArgs e) {
-            if (ContainerByType(e.Message.Command) == null)
+        public async Task InvokeAsync(ServerMessagedEventArgs args) {
+            if (!CompositionHandlers.ContainsKey(args.Message.Command))
                 return;
 
-            await ContainerByType(e.Message.Command)
-                .InvokeAllAsync(this, e);
+            await CompositionHandlers[args.Message.Command].Invoke(this, args);
         }
 
-        public void RegisterMethod(MethodRegistrar<ServerMessagedEventArgs> methodRegistrar) {
-            if (ContainerByType(methodRegistrar.CommandType) == null)
-                methodContainers.Add(new MethodsContainer<ServerMessagedEventArgs>(methodRegistrar.CommandType));
+        public void RegisterMethod(IAsyncRegistrar<ServerMessagedEventArgs> registrar) {
+            AddComposition(registrar);
 
-            // check whether commands exist and add to list
-            if (!methodRegistrar.Definition.Equals(default(KeyValuePair<string, string>)))
-                if (Commands.ContainsKey(methodRegistrar.Definition.Key))
-                    Debug.WriteLine($"'{methodRegistrar.Definition.Key}' command already exists, skipping entry.");
-                else
-                    Commands.Add(methodRegistrar.Definition.Key, methodRegistrar.Definition.Value);
-
-            ContainerByType(methodRegistrar.CommandType)
-                .SubmitRegistrar(methodRegistrar);
+            if (DescriptionRegistry.Keys.Contains(registrar.UniqueId))
+                Debug.WriteLine($"'{registrar.UniqueId}' description already exists, skipping entry.");
+            else
+                DescriptionRegistry.Add(registrar.UniqueId, registrar.Description);
         }
 
-        private MethodsContainer<ServerMessagedEventArgs> ContainerByType(string type) {
-            return methodContainers.SingleOrDefault(container => container.Command.Equals(type));
+        private void AddComposition(IAsyncRegistrar<ServerMessagedEventArgs> registrar) {
+            if (!CompositionHandlers.ContainsKey(registrar.Command))
+                CompositionHandlers.Add(registrar.Command, null);
+
+            CompositionHandlers[registrar.Command] += async (source, e) => {
+                if (!registrar.CanExecute(e))
+                    return;
+
+                await registrar.Composition(e);
+            };
         }
+
 
         /// <summary>
         ///     Loads all plugins
         /// </summary>
         public void LoadPlugins() {
-            if (!Directory.Exists(pluginsDirectory))
-                Directory.CreateDirectory(pluginsDirectory);
+            if (!Directory.Exists(_PluginsDirectory))
+                Directory.CreateDirectory(_PluginsDirectory);
 
             try {
                 // array of all filepaths that are found to match the PLUGIN_MASK
-                IEnumerable<IPlugin> pluginInstances = Directory.GetFiles(pluginsDirectory, PLUGIN_MASK, SearchOption.AllDirectories)
-                    .SelectMany(GetPluginInstances);
+
+#if DEBUG
+                IEnumerable<IPlugin> pluginInstances = Directory.GetFiles("C:\\Users\\semiv\\OneDrive\\Documents\\GitHub\\Convex-IRC-Library\\Convex.Plugin.Core\\bin\\Debug\\netstandard2.0", _PluginMask, SearchOption.AllDirectories).SelectMany(GetPluginInstances);
+#else
+                IEnumerable<IPlugin> pluginInstances = Directory.GetFiles(_PluginsDirectory, _PluginMask, SearchOption.AllDirectories).SelectMany(GetPluginInstances);
+#endif
 
                 foreach (IPlugin plugin in pluginInstances) {
                     plugin.Callback += OnPluginCallback;
@@ -96,8 +103,7 @@ namespace Convex.Plugin {
         /// <param name="assemblyName">full name of assembly</param>
         /// <returns></returns>
         private static IEnumerable<IPlugin> GetPluginInstances(string assemblyName) {
-            return GetTypeInstances(GetAssembly(assemblyName))
-                .Select(type => (IPlugin)Activator.CreateInstance(type));
+            return GetTypeInstances(GetAssembly(assemblyName)).Select(type => (IPlugin)Activator.CreateInstance(type));
         }
 
         /// <summary>
@@ -106,10 +112,7 @@ namespace Convex.Plugin {
         /// <param name="assembly">assembly instance</param>
         /// <returns></returns>
         private static IEnumerable<Type> GetTypeInstances(Assembly assembly) {
-            return assembly.GetTypes()
-                .Where(type => type.GetTypeInfo()
-                    .GetInterfaces()
-                    .Contains(typeof(IPlugin)));
+            return assembly.GetTypes().Where(type => type.GetTypeInfo().GetInterfaces().Contains(typeof(IPlugin)));
         }
 
         private static Assembly GetAssembly(string assemblyName) {
@@ -121,9 +124,9 @@ namespace Convex.Plugin {
         /// </summary>
         /// <param name="plugin">plugin instance</param>
         /// <param name="autoStart">start plugin immediately</param>
-        public void AddPlugin(IPlugin plugin, bool autoStart) {
+        private void AddPlugin(IPlugin plugin, bool autoStart) {
             try {
-                plugins.Add(new PluginInstance(plugin, PluginStatus.Stopped));
+                Plugins.Add(new PluginInstance(plugin, PluginStatus.Stopped));
 
                 if (autoStart)
                     plugin.Start();

@@ -5,7 +5,7 @@ using Convex.Plugin;
 
 #endregion
 
-namespace Convex.Event {
+namespace Convex.ComponentModel.Event {
     public class ActionEventArgs : EventArgs {
         public ActionEventArgs(PluginActionType actionType, object result = null, string pluginName = "") {
             Result = result;

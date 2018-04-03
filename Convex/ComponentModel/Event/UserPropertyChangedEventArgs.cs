@@ -5,6 +5,7 @@ using System.ComponentModel;
 #endregion
 
 namespace Convex.ComponentModel {
+    /// <inheritdoc />
     /// <summary>
     ///     Allows the notifier class to easily tag which property is changed by name, and its new value.
     /// </summary>

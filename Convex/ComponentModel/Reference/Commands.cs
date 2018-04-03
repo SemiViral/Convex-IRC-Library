@@ -1,5 +1,5 @@
-﻿namespace Convex.Resource.Reference {
-    public class Commands {
+﻿namespace Convex.ComponentModel.Reference {
+    public static class Commands {
         public const string DEFAULT = "";
         public const string ABORT = "ABORT";
         public const string USER = "USER";

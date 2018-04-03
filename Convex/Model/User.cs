@@ -9,14 +9,14 @@ using Convex.ComponentModel;
 
 #endregion
 
-namespace Convex.Resource {
+namespace Convex.Model {
     public sealed class User : INotifyPropertyChanged {
-        private int access;
-        private int attempts;
-        private int id;
-        private string nickname;
-        private string realname;
-        private DateTime seen;
+        private int _access;
+        private int _attempts;
+        private int _id;
+        private string _nickname;
+        private string _realname;
+        private DateTime _seen;
 
         public User(int id, string nickname, string realname, int access) {
             Id = id;
@@ -27,49 +27,49 @@ namespace Convex.Resource {
         }
 
         public int Id {
-            get { return id; }
+            get { return _id; }
             set {
-                id = value;
+                _id = value;
                 NotifyPropertyChanged(value);
             }
         }
 
         public int Attempts {
-            get { return attempts; }
+            get { return _attempts; }
             set {
-                attempts = value;
+                _attempts = value;
                 NotifyPropertyChanged(value);
             }
         }
 
         public string Nickname {
-            get { return nickname; }
+            get { return _nickname; }
             set {
-                nickname = value;
+                _nickname = value;
                 NotifyPropertyChanged(value);
             }
         }
 
         public string Realname {
-            get { return realname; }
+            get { return _realname; }
             set {
-                realname = value;
+                _realname = value;
                 NotifyPropertyChanged(value);
             }
         }
 
         public int Access {
-            get { return access; }
+            get { return _access; }
             set {
-                access = value;
+                _access = value;
                 NotifyPropertyChanged(value);
             }
         }
 
         public DateTime Seen {
-            get { return seen; }
+            get { return _seen; }
             set {
-                seen = value;
+                _seen = value;
                 NotifyPropertyChanged(value);
             }
         }

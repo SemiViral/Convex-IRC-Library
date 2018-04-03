@@ -1,11 +1,11 @@
 ﻿#region usings
 
 using System.Collections.Generic;
-using Convex.Resource.Reference;
+using Convex.ComponentModel.Reference;
 
 #endregion
 
-namespace Convex.Resource {
+namespace Convex.Model {
     public class Channel {
         public Channel(string name) {
             Name = name;

@@ -10,30 +10,30 @@ using System.Text;
 
 namespace Convex.Plugin.Calculator {
     public partial class InlineCalculator {
-        private string expression;
+        private string _expression;
 
-        private Stack<double> operands;
-        private Stack<string> operators;
+        private Stack<double> _operands;
+        private Stack<string> _operators;
 
-        private string token;
-        private int tokenPos;
+        private string _token;
+        private int _tokenPos;
 
         public void Clear() {
-            operands = new Stack<double>();
-            operators = new Stack<string>();
+            _operands = new Stack<double>();
+            _operators = new Stack<string>();
 
-            operators.Push(Token.SENTINEL);
-            token = Token.NONE;
-            tokenPos = -1;
+            _operators.Push(Token.SENTINEL);
+            _token = Token.NONE;
+            _tokenPos = -1;
         }
 
         public double Evaluate(string toEval) {
             Clear();
             LoadConstants();
 
-            expression = toEval;
+            _expression = toEval;
 
-            if (Normalize(ref expression)) {
+            if (Normalize(ref _expression)) {
                 double result = Parse();
                 SetVariable(ANSWER_VAR, result);
                 return result;
@@ -46,40 +46,40 @@ namespace Convex.Plugin.Calculator {
         private double Parse() {
             ParseBinary();
             Expect(Token.END);
-            return operands.Peek();
+            return _operands.Peek();
         }
 
         private void ParseBinary() {
             ParsePrimary();
 
-            while (Token.IsBinary(token)) {
-                PushOperator(token);
+            while (Token.IsBinary(_token)) {
+                PushOperator(_token);
                 NextToken();
                 ParsePrimary();
             }
 
-            while (operators.Peek() != Token.SENTINEL)
+            while (_operators.Peek() != Token.SENTINEL)
                 PopOperator();
         }
 
         private void ParsePrimary() {
             while (true) {
-                if (Token.IsDigit(token)) {
+                if (Token.IsDigit(_token)) {
                     ParseDigit();
-                } else if (Token.IsName(token)) {
+                } else if (Token.IsName(_token)) {
                     ParseName();
-                } else if (Token.IsUnary(token)) {
-                    PushOperator(Token.ConvertOperator(token));
+                } else if (Token.IsUnary(_token)) {
+                    PushOperator(Token.ConvertOperator(_token));
                     NextToken();
                     continue;
                 } else {
-                    switch (token) {
+                    switch (_token) {
                         case Token.P_LEFT:
                             NextToken();
-                            operators.Push(Token.SENTINEL);
+                            _operators.Push(Token.SENTINEL);
                             ParseBinary();
                             Expect(Token.P_RIGHT, Token.SEPERATOR);
-                            operators.Pop();
+                            _operators.Pop();
 
                             TryInsertMultiply();
                             TryRightSideOperator();
@@ -99,10 +99,10 @@ namespace Convex.Plugin.Calculator {
         private void ParseDigit() {
             StringBuilder tmpNumber = new StringBuilder();
 
-            while (Token.IsDigit(token))
+            while (Token.IsDigit(_token))
                 CollectToken(ref tmpNumber);
 
-            operands.Push(double.Parse(tmpNumber.ToString(), CultureInfo.InvariantCulture));
+            _operands.Push(double.Parse(tmpNumber.ToString(), CultureInfo.InvariantCulture));
             TryInsertMultiply();
             TryRightSideOperator();
         }
@@ -110,7 +110,7 @@ namespace Convex.Plugin.Calculator {
         private void ParseName() {
             StringBuilder tmpName = new StringBuilder();
 
-            while (Token.IsName(token))
+            while (Token.IsName(_token))
                 CollectToken(ref tmpName);
 
             string name = tmpName.ToString();
@@ -118,27 +118,27 @@ namespace Convex.Plugin.Calculator {
             if (Token.IsFunction(name)) {
                 PushOperator(name);
                 ParsePrimary();
-            } else if (token.Equals(Token.STORE)) {
+            } else if (_token.Equals(Token.STORE)) {
                 NextToken();
                 SetVariable(name, Parse());
             } else {
-                operands.Push(GetVariable(name));
+                _operands.Push(GetVariable(name));
                 TryInsertMultiply();
                 TryRightSideOperator();
             }
         }
 
         private void TryInsertMultiply() {
-            if (Token.IsBinary(token) ||
-                Token.IsSpecial(token) ||
-                Token.IsRightSide(token))
+            if (Token.IsBinary(_token) ||
+                Token.IsSpecial(_token) ||
+                Token.IsRightSide(_token))
                 return;
             PushOperator(Token.MULTIPLY);
             ParsePrimary();
         }
 
         private void TryRightSideOperator() {
-            switch (token) {
+            switch (_token) {
                 case Token.FACTORIAL:
                     PushOperator(Token.FACTORIAL);
                     NextToken();
@@ -152,38 +152,38 @@ namespace Convex.Plugin.Calculator {
 
         private void PushOperator(string op) {
             if (Token.UNARY_MINUS.Equals(op)) {
-                operators.Push(op);
+                _operators.Push(op);
                 return;
             }
 
-            while (Token.Compare(operators.Peek(), op) > 0)
+            while (Token.Compare(_operators.Peek(), op) > 0)
                 PopOperator();
 
-            operators.Push(op);
+            _operators.Push(op);
         }
 
         private void PopOperator() {
-            if (Token.IsBinary(operators.Peek())) {
-                double o2 = operands.Pop();
-                double o1 = operands.Pop();
-                Calculate(operators.Pop(), o1, o2);
+            if (Token.IsBinary(_operators.Peek())) {
+                double o2 = _operands.Pop();
+                double o1 = _operands.Pop();
+                Calculate(_operators.Pop(), o1, o2);
             } else {
-                Calculate(operators.Pop(), operands.Pop());
+                Calculate(_operators.Pop(), _operands.Pop());
             }
         }
 
         private void NextToken() {
-            if (token != Token.END)
-                token = expression[++tokenPos].ToString();
+            if (_token != Token.END)
+                _token = _expression[++_tokenPos].ToString();
         }
 
         private void CollectToken(ref StringBuilder sb) {
-            sb.Append(token);
+            sb.Append(_token);
             NextToken();
         }
 
         private void Expect(params string[] expectedTokens) {
-            if (expectedTokens.Any(t => token.Equals(t))) {
+            if (expectedTokens.Any(t => _token.Equals(t))) {
                 NextToken();
                 return;
             }
@@ -204,7 +204,7 @@ namespace Convex.Plugin.Calculator {
         }
 
         private void ThrowException(string message) {
-            throw new CalculateException(message, tokenPos);
+            throw new CalculateException(message, _tokenPos);
         }
     }
 

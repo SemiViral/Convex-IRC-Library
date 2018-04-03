@@ -1,11 +1,11 @@
 ﻿#region usings
 
 using System;
-using Convex.Resource;
+using Convex.Model;
 
 #endregion
 
-namespace Convex.Event {
+namespace Convex.ComponentModel.Event {
     public class ServerMessagedEventArgs : EventArgs {
         public ServerMessagedEventArgs(Client bot, ServerMessage message) {
             Caller = bot;

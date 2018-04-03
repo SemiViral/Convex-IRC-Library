@@ -10,12 +10,12 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Convex.ComponentModel;
-using Convex.Event;
+using Convex.ComponentModel.Event;
 using Microsoft.Data.Sqlite;
 
 #endregion
 
-namespace Convex.Resource {
+namespace Convex.Model {
     public sealed class Database {
         public readonly ObservableCollection<User> Users;
 

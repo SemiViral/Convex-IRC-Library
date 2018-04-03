@@ -1,12 +1,11 @@
 ﻿#region usings
 
 using System;
-using System.Collections.Generic;
 using System.Threading.Tasks;
-using Convex.Event;
-using Convex.Plugin;
-using Convex.Resource;
-using Convex.Resource.Reference;
+using Convex.ComponentModel.Event;
+using Convex.ComponentModel.Reference;
+using Convex.Model;
+using Convex.Plugin.Registrar;
 using Serilog;
 using Serilog.Events;
 
@@ -14,32 +13,30 @@ using Serilog.Events;
 
 namespace Convex.Example {
     public class IrcBot : IDisposable {
-        private readonly Client bot;
+        private readonly Client _bot;
 
         /// <summary>
         ///     Initialises class
         /// </summary>
         public IrcBot() {
-            bot = new Client("irc.foonetic.net", 6667);
-            bot.Server.Channels.Add(new Channel("#testgrounds"));
+            _bot = new Client("irc.foonetic.net", 6667);
+            _bot.Server.Channels.Add(new Channel("#testgrounds"));
 
-            Log.Logger = new LoggerConfiguration().WriteTo.RollingFile(bot.ClientConfiguration.LogFilePath)
-                .WriteTo.LiterateConsole()
-                .CreateLogger();
+            Log.Logger = new LoggerConfiguration().WriteTo.RollingFile(_bot.ClientConfiguration.LogFilePath).WriteTo.LiterateConsole().CreateLogger();
         }
 
-        private string BotInfo => $"[Version {bot.Version}] Evealyn is an IRC bot created by SemiViral as a primary learning project for C#.";
+        private string BotInfo => $"[Version {_bot.Version}] Evealyn is an IRC bot created by SemiViral as a primary learning project for C#.";
 
-        public bool Executing => bot.Server.Executing;
+        public bool Executing => _bot.Server.Executing;
 
         public async Task Initialise() {
-            await bot.Initialise();
+            await _bot.Initialise();
             RegisterMethods();
 
-            bot.Initialized += (source, e) => OnLog(source, new LogEventArgs(LogEventLevel.Information, "Client initialized."));
-            bot.Log += (source, e) => OnLog(source, new LogEventArgs(LogEventLevel.Information, e.Contents));
-            bot.Server.Connection.Flushed += (source, e) => OnLog(source, new LogEventArgs(LogEventLevel.Information, $" >> {e.Contents}"));
-            bot.Server.ChannelMessaged += LogChannelMessage;
+            _bot.Initialized += (source, e) => OnLog(source, new LogEventArgs(LogEventLevel.Information, "Client initialized."));
+            _bot.Log += (source, e) => OnLog(source, new LogEventArgs(LogEventLevel.Information, e.Contents));
+            _bot.Server.Connection.Flushed += (source, e) => OnLog(source, new LogEventArgs(LogEventLevel.Information, $" >> {e.Contents}"));
+            _bot.Server.ChannelMessaged += LogChannelMessage;
         }
 
         private static Task OnLog(object source, LogEventArgs e) {
@@ -81,7 +78,7 @@ namespace Convex.Example {
         }
 
         public async Task Execute() {
-            await bot.Server.QueueAsync(bot);
+            await _bot.Server.QueueAsync(_bot);
         }
 
         #region register methods
@@ -90,15 +87,14 @@ namespace Convex.Example {
         ///     Register all methods
         /// </summary>
         private void RegisterMethods() {
-            bot.RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Commands.PRIVMSG, Info, e => e.Message.InputCommand.Equals("info"), new KeyValuePair<string, string>("info", "returns the basic information about this bot")));
+            _bot.RegisterMethod(new MethodRegistrar<ServerMessagedEventArgs>(Info, e => e.Message.InputCommand.Equals(nameof(Info).ToLower()), Commands.PRIVMSG, new Tuple<string, string>(nameof(Info), "returns the basic information about this bot")));
         }
 
         private async Task Info(ServerMessagedEventArgs e) {
-            if (e.Message.SplitArgs.Count < 2 ||
-                !e.Message.SplitArgs[1].Equals("info"))
+            if (e.Message.SplitArgs.Count < 2 || !e.Message.SplitArgs[1].Equals("info"))
                 return;
 
-            await bot.Server.Connection.SendDataAsync(Commands.PRIVMSG, $"{e.Message.Origin} {BotInfo}");
+            await _bot.Server.Connection.SendDataAsync(Commands.PRIVMSG, $"{e.Message.Origin} {BotInfo}");
         }
 
         #endregion
@@ -107,7 +103,7 @@ namespace Convex.Example {
 
         private void Dispose(bool disposing) {
             if (disposing)
-                bot?.Dispose();
+                _bot?.Dispose();
         }
 
         public void Dispose() {

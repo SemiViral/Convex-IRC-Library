@@ -39,7 +39,7 @@ namespace Convex.Plugin.Calculator {
                         throw new ArgumentOutOfRangeException();
                 }
 
-                operands.Push(PostProcess(res));
+                _operands.Push(PostProcess(res));
             } catch (Exception e) {
                 ThrowException(e.Message);
             }
@@ -93,7 +93,7 @@ namespace Convex.Plugin.Calculator {
                         throw new ArgumentOutOfRangeException();
                 }
 
-                operands.Push(PostProcess(res));
+                _operands.Push(PostProcess(res));
             } catch (Exception e) {
                 ThrowException(e.Message);
             }

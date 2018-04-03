@@ -4,16 +4,17 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Convex.Resource.Reference;
+using Convex.ComponentModel;
+using Convex.ComponentModel.Reference;
 
 #endregion
 
-namespace Convex.Resource {
+namespace Convex.Model {
     public class ServerMessage {
         // Regex for parsing RawMessage messages
-        private static readonly Regex _messageRegex = new Regex(@"^:(?<Sender>[^\s]+)\s(?<Type>[^\s]+)\s(?<Recipient>[^\s]+)\s?:?(?<Args>.*)", RegexOptions.Compiled);
+        private static readonly Regex _MessageRegex = new Regex(@"^:(?<Sender>[^\s]+)\s(?<Type>[^\s]+)\s(?<Recipient>[^\s]+)\s?:?(?<Args>.*)", RegexOptions.Compiled);
 
-        private static readonly Regex _senderRegex = new Regex(@"^(?<Nickname>[^\s]+)!(?<Realname>[^\s]+)@(?<Hostname>[^\s]+)", RegexOptions.Compiled);
+        private static readonly Regex _SenderRegex = new Regex(@"^(?<Nickname>[^\s]+)!(?<Realname>[^\s]+)@(?<Hostname>[^\s]+)", RegexOptions.Compiled);
 
         public readonly Dictionary<string, string> Tags = new Dictionary<string, string>();
 
@@ -28,7 +29,7 @@ namespace Convex.Resource {
             Parse();
         }
 
-        public bool IsIRCv3Message { get; private set; }
+        public bool IsIrCv3Message { get; private set; }
 
         public string RawMessage { get; }
 
@@ -51,7 +52,7 @@ namespace Convex.Resource {
             if (!RawMessage.StartsWith("@"))
                 return;
 
-            IsIRCv3Message = true;
+            IsIrCv3Message = true;
 
             string fullTagsPrefix = RawMessage.Substring(0, RawMessage.IndexOf(' '));
             string[] primitiveTagsCollection = RawMessage.Split(';');
@@ -61,7 +62,7 @@ namespace Convex.Resource {
         }
 
         public void Parse() {
-            if (!_messageRegex.IsMatch(RawMessage))
+            if (!_MessageRegex.IsMatch(RawMessage))
                 return;
 
             ParseTagsPrefix();
@@ -69,8 +70,8 @@ namespace Convex.Resource {
             Timestamp = DateTime.Now;
 
             // begin parsing message into sections
-            Match mVal = _messageRegex.Match(RawMessage);
-            Match sMatch = _senderRegex.Match(mVal.Groups["Sender"].Value);
+            Match mVal = _MessageRegex.Match(RawMessage);
+            Match sMatch = _SenderRegex.Match(mVal.Groups["Sender"].Value);
 
             // class property setting
             Nickname = mVal.Groups["Sender"].Value;
