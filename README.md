@@ -1,3 +1,5 @@
+**I am no longer developing Convex as a singular IRC library. It is now a suite of library packages here on GitHub. Thusly, this specific project is no longer being updated.**
+
 # Convex, an IRC library
 
  Convex is an IRC library that (tries) to achieve idiomatic simplicty.
